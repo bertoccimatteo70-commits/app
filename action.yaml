@@ -1,0 +1,7 @@
+name: build-android-apk-example
+description: Example Android CI action
+runs:
+  using: composite
+  steps:
+    - run: echo ok
+      shell: bash

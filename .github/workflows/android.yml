@@ -1,0 +1,48 @@
+name: Build LifeOS APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.kt"
+      - "**.kts"
+      - "gradle/**"
+      - "gradlew*"
+      - "app/build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/setup-gradle@v4
+        with:
+          gradle-version: 8.12
+          cache-read-only: false
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install SDK targets
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.1.0"
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LifeOS-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+          if-no-files-found: error
