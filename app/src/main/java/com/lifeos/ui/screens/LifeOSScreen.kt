@@ -55,7 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.data.LifeOSStorage
 import com.lifeos.data.LifeOSState
@@ -85,8 +85,8 @@ sealed class Tab {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LifeOSScreen() {
-    val context = ContextCompat.getMainContext(LocalContext.current)
-    val state by LifeOSStorage.flow(context).collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val state by LifeOSStorage.flow(context).collectAsStateWithLifecycle(initialValue = LifeOSState())
     var activeTab by remember { mutableIntStateOf(0) }
     val tabs = listOf(Tab.Home, Tab.Activity, Tab.Notes, Tab.Deadlines, Tab.Goals)
 

@@ -5,17 +5,19 @@ Tema scuro di default, persisting locale con Datastore.
 
 ## Configurazione Gradle
 
-Il wrapper Gradle è stato ottenuto dalla distribuzione ufficiale Gradle 8.12:
+Il wrapper Gradle 8.12 è stato generato con il task `wrapper` della
+ distribuzione ufficiale:
 https://services.gradle.org/distributions/gradle-8.12-bin.zip
 
-Se vuoi rigenerare il wrapper ulcerale:
- - usa `gradle wrapper` in un ambiente con Gradle 8.12 installato
- - oppure scarica `gradle-wrapper-main-8.12.jar` dalla distribuzione sopra e
-   mettilo in `gradle/wrapper/gradle-wrapper.jar`
+Per rigenerarlo:
+
+```
+ gradle wrapper --gradle-version 8.12 --distribution-type bin
+```
 
 ## Build locale
 
-Richiede JDK 21 e Android SDK con platform 34 e build-tools 34.0.0.
+Richiede JDK 21 e Android SDK con platform 35 e build-tools 35.0.0.
 
 ```
 ./gradlew :app:assembleDebug

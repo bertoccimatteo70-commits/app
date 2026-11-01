@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -140,6 +142,7 @@ fun NoteCard(note: Note, onRemove: (String) -> Unit, modifier: Modifier = Modifi
 fun ActivityRow(
     activity: Activity,
     onToggle: (String, Boolean) -> Unit,
+    onRemove: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -163,6 +166,14 @@ fun ActivityRow(
             },
             modifier = Modifier.weight(1f)
         )
+        IconButton(onClick = { onRemove(activity.id) }) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Elimina attività",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 
