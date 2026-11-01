@@ -2,7 +2,7 @@ name: Build LifeOS APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, freebuff/e374e51647df726e31db2253]
     paths:
       - "**.kt"
       - "**.kts"
