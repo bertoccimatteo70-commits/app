@@ -27,11 +27,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Installs cmdline-tools and exports ANDROID_HOME, ANDROID_SDK_ROOT and
+      # PATH. License acceptance is done explicitly in the next step: the
+      # action's own handler answers at most 10 prompts (fixed "y\ny\n...y"
+      # buffer without a trailing newline) and blocks on "(y/N)?" once more
+      # licenses are pending, which hangs the job.
       - uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+          packages: ''
 
-      - name: Install SDK targets
+      - name: Accept Android SDK licenses and install SDK packages
         run: |
-          yes | sdkmanager --licenses >/dev/null
+          # Answers are fed from a file, not from `yes | sdkmanager`: the
+          # runner shell uses `-o pipefail`, and `yes` gets SIGPIPE (exit
+          # 141) as soon as sdkmanager stops reading, failing the step.
+          printf 'y\n%.0s' {1..100} > "$RUNNER_TEMP/android-sdk-licenses.txt"
+          sdkmanager --licenses < "$RUNNER_TEMP/android-sdk-licenses.txt" > /dev/null
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build debug APK
