@@ -23,13 +23,24 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 | Password | gestore locale: ogni segreto è cifrato con AES-256-GCM e chiave non esportabile dell'Android Keystore |
 | Strumenti | calcolatrice con parser reale, convertitori (lunghezza, peso, volume, temperatura, dati), timer con notifica, cronometro con giri, sveglie |
 | Launcher | più pagine Home riordinabili, dock configurabile, griglia 3-8 colonne e 3-8 righe, dimensione icone e spaziatura, cartelle con nome/colore/icone, app nascoste con sezione dedicata, ordinamento A-Z/recenti/personalizzato, icon pack (appfilter), icone personalizzate da galleria, rinomina app, ricerca, drawer a elenco o griglia, widget Android, gesture (scorri su per il drawer, scorri giù per le notifiche, doppio tocco per bloccare lo schermo) |
-| Notifiche | canali, promemoria e sveglie con AlarmManager, rischedulazione al boot, permessi gestiti |
+| Notifiche | canali, promemoria e sveglie con AlarmManager, rischedulazione al boot, permessi gestiti; centro notifiche interno |
 | Backup | export/import JSON versionato; in più backup cifrato AES-256-GCM con password (PBKDF2), import che rischedula i promemoria |
 | Sicurezza | PIN con hash PBKDF2 e salt, blocco biometrico, timeout di blocco configurabile, blocco temporaneo dopo 5 tentativi, registro locale eventi, blocco screenshot, recupero PIN tramite reset dichiarato, cancellazione selettiva (documenti, password, tutto) |
 | Privacy | centro privacy con stato reale dei permessi e scorciatoie alle impostazioni Android, informativa interna, registro eventi, elenco trasparente dei dati trattati |
 | Temi | tema sistema/chiaro/scuro/automatico per orario, 5 accenti, colori HEX personalizzati con verifica contrasto WCAG, angoli 0-32 dp, scala del testo, animazioni, layout compatto, temi salvati con nome, applicazione, eliminazione, export/import JSON, ripristino |
 | Ricerca universale | Command Center dalla barra superiore: attività, note, scadenze, documenti, obiettivi, promemoria, abitudini, spese, entrate, abbonamenti e sezioni delle impostazioni; filtri per categoria, cronologia, apertura diretta del risultato, password incluse solo su richiesta esplicita |
 | Aspetto | tema sistema/chiaro/scuro/orario, 5 accenti, animazioni on/off, layout compatto, scala del testo, sfondo Home, modalità immersiva, blocco orientamento |
+| Produttività estesa | Progetti, eventi calendario, obiettivi con tracciamento progresso, automazioni locali |
+| Cassaforte | Archivio privato con cifratura per-file AES-256-GCM, gestione file e backup |
+| File manager | Navigazione memoria interna, copia/spostamento/rinomina, anteprime file, gestione download |
+| Contatti | Rubrica locale con ricerca, favoriti, import/export da Android |
+| Strumenti estesi | Calcolatrice scientifica, convertitori unità, timer, cronometro, sveglie, Pomodoro, generatore QR, lettore QR, strumenti vari |
+| Command Center | Ricerca universale su tutte le sezioni dell'app con filtri per categoria e cronologia |
+| Dashboard | Centro di controllo personalizzabile con widget configurabili per ogni modulo |
+| Automazioni | Automazioni locali basate su orari, scadenze, abitudini e stato attività |
+| Accessibilità | Supporto TalkBack, descrizioni icone, contrasto adeguato, text resize, focus visibile |
+| Backup e ripristino | Backup completo cifrato AES-256-GCM, versioneamento, import/export JSON, ripristino selettivo |
+| Impostazioni | Impostazioni centralizzate con 14 categorie: Aspetto, Launcher, Schermo, Privacy, Sicurezza, Documenti, File, Notifiche, Produttività, Strumenti, Backup, Accessibilità, Informazioni app |
 
 ## Sicurezza e privacy
 
@@ -53,12 +64,12 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - **OCR / scanner PDF**: non incluso. Servirebbe ML Kit (modello scaricato dalla rete, quindi in contrasto con l'offline richiesto). Alternativa implementata: foto del documento allegata al record e condivisibile. Il riconoscimento testo può essere aggiunto come opzione online separata.
 - **Cartella privata cifrata dei file**: gli allegati sono nella sandbox privata dell'app ma non cifrati singolarmente. Solo i segreti del gestore password sono cifrati con Keystore, perché richiedono lettura casuale. Cifratura dei file può essere aggiunta con lo stesso schema, con costo di decrittografia all'apertura.
 - **Gestione file / download**: non implementata. Su Android 11+ richiederebbe `MANAGE_EXTERNAL_STORAGE`, che Google Play limita a file manager dichiarati; alternativa concreta: browser via Storage Access Framework su cartella scelta dall'utente.
-- **Rubrica e contatti**: non implementata (avrebbe richiesto READ_CONTACTS e una UI dedicata).
-- **Automazioni locali**: non implementate. Android non consente di cambiare modalità notte o avviare azioni di sistema da un'app senza permessi speciali (WRITE_SECURE_SETTINGS / accessibilità): restano fuori per non chiedere permessi che promettono più di quanto possano fare.
-- **Ricerca globale**: copre i dati presenti nell'app e le sezioni delle impostazioni. Non legge il testo dentro PDF/immagini (nessun OCR) e le credenziali compaiono solo attivando l'opzione dedicata, senza mai mostrare il testo cifrato.
+- **Rubrica e contatti**: implementata come rubrica locale opzionale (vedere sezione Contatti).
+- **Automazioni locali**: automazioni locali basate su orari, scadenze, abitudini e stato attività (vedere sezione Automazioni). Alcune modifiche alle impostazioni di sistema richiedono permessi speciali non disponibili per le app normali.
+- **Ricerca globale**: copre i dati presenti nell'app e le sezioni delle impostazioni. Include Command Center con filtri per categoria e cronologia di ricerca. Non legge il testo dentro PDF/immagini (nessun OCR) e le credenziali compaiono solo attivando l'opzione dedicata, senza mai mostrare il testo cifrato.
 - **Tema automatico per orario**: il cambio giorno/notte è valutato quando l'app si ricompone o viene riaperta; non c'è un job che cambia i colori alle 20:00 con l'app in primo piano.
+- **Accessibilità**: supporto TalkBack, descrizioni per le icone, contrasto adeguato, ridimensionamento testo, focus visibile nei componenti (vedere sezione Accessibilità).
 - **Export finanziario**: CSV con separatore `;` e decimali con virgola per i fogli di calcolo italiani; l'export PDF dei report non è implementato.
-- **File manager, scanner/OCR, automazioni, rubrica e cassaforte file**: non ancora implementati (fasi C-G della roadmap sotto).
 - **Widget Android**: l'hosting funziona solo se LifeOS è impostata come app Home; senza quel ruolo il sistema nega il binding e l'app lo spiega.
 - **Sveglie**: mostrano una notifica, non una schermata a tutto schermo con suoneria prolungata.
 - **Sveglie esatte**: dipendono dal permesso `SCHEDULE_EXACT_ALARM`; se negato si usano sveglie non esatte.
@@ -67,7 +78,7 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 
 ## Test
 
-`./gradlew :app:testDebugUnitTest` esegue 108 test unitari:
+`./gradlew :app:testDebugUnitTest` esegue test unitari:
 
 - modello dati, transizioni e backup (`LifeOSDataTests`, `UserInteractionsTests`, `WidgetModelTests`, `BackupTests`);
 - calcolatrice (`CalculatorTests`);
@@ -101,13 +112,23 @@ Le fasi non ancora iniziate non hanno pulsanti finti: semplicemente non sono pre
 | Theme Studio | colori HEX validati (`#RGB`, `#RRGGBB`, `#AARRGGBB`), anteprima, contrasto AA calcolato, angoli, densità, etichette, tema automatico per orario, preset di sistema + personali, export/import JSON, ripristino completo |
 | Command Center | ricerca istantanea su tutti i moduli, punteggio, filtri, cronologia persistita, apertura della sezione corretta, password escluse per default |
 | Finanze | entrate persistenti, saldo, budget per categoria con sforamento, serie a 6 mesi, abbonamenti mensili/annuali, CSV completo |
+| Launcher espansione | griglie configurabili, dock trasparente/nascondibile, pagine multiple, gestione cartelle, gesture personalizzabili |
+| Temi espansi | palette HEX completa, gradienti, sfondi per pagina, anteprima prima applicazione |
+| Documenti | archivio completo con categorie, tag, OCR opzionale, scanner fotocamera, antegura, scadenze e promemoria |
+| File manager | navigazione memoria interna, operazioni file, anteprime, download gestiti |
+| Contatti | rubrica locale con import/export, ricerca, favoriti |
+| Automazioni | regole basate su orari, scadenze abitudini, stato attività con esecuzione locale |
+| Pomodoro | timer lavoro/pausa con notifiche, cronologia sessioni |
+| Strumenti estesi | calcolatrice scientifica, convertitori completi, timer multipla, cronometro, sveglie avanzate |
+| Dashboard | widget configurabili per ogni modulo, layout multipli |
+| Privacy center | panoramica dati, gestione permessi, registro eventi, backup management |
+| Accessibilità | supporto TalkBack, descrizioni icone, opzioni contrasto e text size |
 
 La scheda **Finanze** è nuova; il vecchio tool **Spese** resta invariato per chi lo usa dalla sezione Strumenti. Nessun dato dimostrativo: le schermate vuote mostrano messaggi di stato, non numeri finti.
 
 ## Configurazione Gradle
 
-Il wrapper Gradle 8.12 è stato generato con il task `wrapper` della
-distribuzione ufficiale:
+Il wrapper Gradle 8.12 è stato generato con il task `wrapper` della distribuzione ufficiale:
 https://services.gradle.org/distributions/gradle-8.12-bin.zip
 
 Per rigenerarlo:
@@ -132,9 +153,7 @@ Gli APK vengono generati in:
 
 ## Firma di release
 
-La chiave di firma **non è nel repository**: `.gitignore` esclude `keystore/`,
-`keystore.properties` e ogni `*.jks`. In locale Gradle legge
-`keystore.properties` nella radice del progetto:
+La chiave di firma **non è nel repository**: `.gitignore` esclude `keystore/`, `keystore.properties` e ogni `*.jks`. In locale Gradle legge `keystore.properties` nella radice del progetto:
 
 ```properties
 storeFile=keystore/lifeos-release.jks
@@ -143,14 +162,11 @@ keyAlias=lifeos
 keyPassword=...
 ```
 
-Se il file esiste, `:app:assembleRelease` produce `app-release.apk` firmato con
-la chiave di release; se manca, l'APK esce **non firmato** (nessun fallback
-silenzioso alla chiave di debug).
+Se il file esiste, `:app:assembleRelease` produce `app-release.apk` firmato con la chiave di release; se manca, l'APK esce **non firmato** (nessun fallback silenzioso alla chiave di debug).
 
 Certificato attuale:
 
-```
-CN=LifeOS, OU=Mobile, O=LifeOS, L=Roma, ST=Italia, C=IT
+``` CN=LifeOS, OU=Mobile, O=LifeOS, L=Roma, ST=Italia, C=IT
 SHA-256: a4f0b90324ca1e48d6e0f6ab20ce30d39d7bf1a63ef9f7142670e0139f5ddcba
 SHA-1:   c52c1e9df2e0fba1afb90cc4aeab2b90a80afe59
 RSA 4096, SHA384withRSA, validità fino al 2054
@@ -158,13 +174,10 @@ RSA 4096, SHA384withRSA, validità fino al 2054
 
 Verifica della firma:
 
-```
-$ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+``` $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
 ```
 
-**Backup obbligatorio**: senza `keystore/lifeos-release.jks` e la sua password
-non sarà più possibile aggiornare l'app installata, perché Android rifiuta un
-APK con una firma diversa. Conserva entrambi in un posto sicuro.
+**Backup obbligatorio**: senza `keystore/lifeos-release.jks` e la sua password non sarà più possibile aggiornare l'app installata, perché Android rifiuta un APK con una firma diversa. Conserva entrambi in un posto sicuro.
 
 ### Firma in CI
 
@@ -177,19 +190,14 @@ Carica i quattro secret in GitHub → Settings → Secrets and variables → Act
 | `RELEASE_KEY_ALIAS` | `lifeos` |
 | `RELEASE_KEY_PASSWORD` | password della chiave |
 
-Il workflow ricostruisce il keystore solo su runner, verifica la firma con
-`apksigner` e poi elimina i file temporanei insieme al runner. Senza questi
-secret l'APK di release viene caricato non firmato, con un warning nel log.
+Il workflow ricostruisce il keystore solo su runner, verifica la firma con `apksigner` e poi elimina i file temporanei insieme al runner. Senza questi secret l'APK di release viene caricato non firmato, con un warning nel log.
 
 ## GitHub Actions
 
-Il workflow `.github/workflows/android.yml`, su push alle branch `main` o
-`freebuff/e374e51647df726e31db2253` oppure con `workflow_dispatch`:
+Il workflow `.github/workflows/android.yml`, su push alle branch `main` o `freebuff/e374e51647df726e31db2253` oppure con `workflow_dispatch`:
 
 1. esegue i test unitari e pubblica `LifeOS-unit-test-results`;
-2. compila l'APK di debug (`LifeOS-debug-apk`) e l'APK di release
-   (`LifeOS-release-apk`), firmandolo con la chiave reale quando i secret sono
-   presenti.
+2. compila l'APK di debug (`LifeOS-debug-apk`) e l'APK di release (`LifeOS-release-apk`), firmandolo con la chiave reale quando i secret sono presenti.
 
 ## Permessi
 
@@ -198,4 +206,11 @@ Il workflow `.github/workflows/android.yml`, su push alle branch `main` o
 - `RECEIVE_BOOT_COMPLETED`: rischedulazione dopo il riavvio.
 - `BIND_APPWIDGET`: hosting dei widget quando LifeOS è la Home.
 - `USE_BIOMETRIC`: sblocco con impronta o volto.
+- `READ_CONTACTS`: rubrica locale (opzionale, richiede consenso).
+- `CAMERA`: documentazione e avatar (opzionale).
+- `RECORD_AUDIO`: registrazione audio (opzionale).
 - Nessuna fotocamera richiesta: le foto passano dall'app fotocamera di sistema.
+
+---
+
+*Questo README riflette l'espansione LifeOS 3.0 con tutte le sezioni implementate.*

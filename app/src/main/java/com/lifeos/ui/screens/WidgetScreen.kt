@@ -2,133 +2,172 @@ package com.lifeos.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lifeos.data.defaultWidgetSettings
+import com.lifeos.data.LifeOSState
 import com.lifeos.ui.LifeOSViewModel
-import com.lifeos.ui.components.MiniDotLegend
-import com.lifeos.ui.components.SectionHeader
-import com.lifeos.ui.components.icon
-import com.lifeos.ui.components.label
+import com.lifeos.ui.components.EmptyPlaceholder
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WidgetScreen(viewModel: LifeOSViewModel) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val widgets = state.settings.dashboardWidgets
+fun WidgetScreen(viewModel: LifeOSViewModel?) {
+    val state = viewModel?.state ?: LifeOSState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Configura la dashboard",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = {
-                    viewModel.updateSettings { it.copy(dashboardWidgets = defaultWidgetSettings()) }
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Restore,
-                        contentDescription = "Ripristina widget",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Widget") }) }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Sezione: Widget disponibili
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Widget disponibili", style = MaterialTheme.typography.titleMedium)
+                        Text("Tap per aggiungere alla dashboard", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Activity List widget
+                            item {
+                                Box(modifier = Modifier.fillMaxSize().padding(8.dp),
+                                    contentPadding = PaddingValues(8.dp),
+                                    backgroundColor = MaterialTheme.colorScheme.surface) {
+                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.ACTIVITY_LIST, contentDescription = "Lista attività", tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Lista attività", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Ultime attività", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Icon(Icons.Default.NavigateNext, contentDescription = "Aggiungi", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    onClick = { /* add widget */ }
+                                }
+                            }
+
+                            // Recent Notes widget
+                            item {
+                                Box(modifier = Modifier.fillMaxSize().padding(8.dp),
+                                    contentPadding = PaddingValues(8.dp),
+                                    backgroundColor = MaterialTheme.colorScheme.surface) {
+                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.RECENT_NOTES, contentDescription = "Note recenti", tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Note recenti", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Ultime note", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Icon(Icons.Default.NavigateNext, contentDescription = "Aggiungi", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    onClick = { /* add widget */ }
+                                }
+                            }
+
+                            // Goals widget
+                            item {
+                                Box(modifier = Modifier.fillMaxSize().padding(8.dp),
+                                    contentPadding = PaddingValues(8.dp),
+                                    backgroundColor = MaterialTheme.colorScheme.surface) {
+                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.GOALS, contentDescription = "Obiettivi", tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Obiettivi", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Progresso obiettivi", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Icon(Icons.Default.NavigateNext, contentDescription = "Aggiungi", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    onClick = { /* add widget */ }
+                                }
+                            }
+
+                            // Calendar widget
+                            item {
+                                Box(modifier = Modifier.fillMaxSize().padding(8.dp),
+                                    contentPadding = PaddingValues(8.dp),
+                                    backgroundColor = MaterialTheme.colorScheme.surface) {
+                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CALENDAR, contentDescription = "Calendario", tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Calendario", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Giorni e date", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Icon(Icons.Default.NavigateNext, contentDescription = "Aggiungi", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    onClick = { /* add widget */ }
+                                }
+                            }
+
+                            // Reminders widget
+                            item {
+                                Box(modifier = Modifier.fillMaxSize().padding(8.dp),
+                                    contentPadding = PaddingValues(8.dp),
+                                    backgroundColor = MaterialTheme.colorScheme.surface) {
+                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.REMINDERS, contentDescription = "Promemoria", tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Promemoria", style = MaterialTheme.typography.bodyMedium)
+                                            Text "Promemoria attivi", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                        Icon(Icons.Default.NavigateNext, contentDescription = "Aggiungi", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    onClick = { /* add widget */ }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            Text(
-                text = "I widget attivi compaiono nella Dashboard e nell'ordine scelto qui.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
 
-        items(widgets, key = { it.kind.name }) { setting ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = setting.kind.icon(),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.size(10.dp))
-                    Text(
-                        text = setting.kind.label(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = {
-                            val index = widgets.indexOf(setting)
-                            viewModel.onWidgetReorder(index, index - 1)
-                        },
-                        enabled = widgets.indexOf(setting) > 0,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "Sposta su", modifier = Modifier.size(16.dp))
+            // Sezione: Widget nella dashboard
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Widget nella dashboard", style = MaterialTheme.typography.titleMedium)
+                        if (state.settings.dashboardWidgets.isEmpty()) {
+                            Text("Nessun widget nella dashboard", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                items(state.settings.dashboardWidgets, key = { it.kind }) { widget ->
+                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(widget.kind.name, style = MaterialTheme.typography.bodySmall)
+                                        Switch(checked = widget.visible,
+                                            onCheckedChange = { viewModel?.togglingWidget(widget.kind) })
+                                        Text("Visibile", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
                     }
-                    IconButton(
-                        onClick = {
-                            val index = widgets.indexOf(setting)
-                            viewModel.onWidgetReorder(index, index + 1)
-                        },
-                        enabled = widgets.indexOf(setting) < widgets.lastIndex,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = "Sposta giù", modifier = Modifier.size(16.dp))
-                    }
-                    Switch(
-                        checked = setting.visible,
-                        onCheckedChange = { viewModel.onWidgetToggle(setting.kind) }
-                    )
                 }
             }
         }
-
-        item { SectionHeader("Anteprima") }
-        item { MiniDotLegend("I widget sono gli stessi della Dashboard: nessuna duplicazione.") }
-        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }

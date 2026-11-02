@@ -1,365 +1,379 @@
 package com.lifeos.ui.screens
 
-import android.Manifest
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.item
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Chip
+import androidx.compose.material3.ChipGroup
+import androidx.compose.material3.ExperimentalCheckboxGroup
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lifeos.data.Accent
-import com.lifeos.data.ThemeMode
-import com.lifeos.notifications.LifeOSNotifications
-import com.lifeos.notifications.ReminderScheduler
+import com.lifeos.data.LifeOSState
 import com.lifeos.ui.LifeOSViewModel
-import com.lifeos.ui.components.SectionHeader
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(
-    viewModel: LifeOSViewModel,
-    query: String = "",
-    onQueryChange: (String) -> Unit = {}
-) {
-    val context = LocalContext.current
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val settings = state.settings
-    val needle = query.trim().lowercase()
-    fun matches(vararg words: String): Boolean =
-        needle.isEmpty() || words.any { it.lowercase().contains(needle) }
-    var message by remember { mutableStateOf<String?>(null) }
+fun SettingsScreen(viewModel: LifeOSViewModel?, query: String = "", onQueryChange: (String) -> Unit) {
+    val state = viewModel?.state ?: LifeOSState()
 
-    val notificationPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> message = if (granted) "Notifiche abilitate" else "Permesso notifiche negato" }
-
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val payload = viewModel.exportBackup()
-        val result = runCatching {
-            context.contentResolver.openOutputStream(uri)?.use { it.write(payload.toByteArray()) }
-                ?: error("Stream non disponibile")
-        }
-        message = if (result.isSuccess) "Backup esportato" else "Esportazione fallita: ${result.exceptionOrNull()?.message}"
-    }
-
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val text = runCatching {
-            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-        }.getOrNull()
-        if (text == null) {
-            message = "Impossibile leggere il file"
-        } else {
-            message = viewModel.importBackup(text).fold(
-                onSuccess = { "Backup ripristinato" },
-                onFailure = { it.message ?: "Backup non valido" }
-            )
-        }
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        item {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                label = { Text("Cerca nelle impostazioni") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Impostazioni") },
+                optionalAction = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Cancella ricerca")
+                        androidx.compose.material3.TextButton(onClick = { onQueryChange("") }) {
+                            Text("Chiudi")
                         }
-                    }
-                },
-                singleLine = true
-            )
-        }
-
-        if (matches("aspetto", "tema", "colore", "sfondo", "angoli", "testo", "animazioni", "layout")) {
-            item { SectionHeader("Aspetto") }
-            item { ThemeStudioCard(viewModel) }
-        }
-
-        if (matches("sicurezza", "privacy", "pin", "biometria", "timeout", "screenshot", "blocco")) {
-            item { SectionHeader("Sicurezza e privacy") }
-            item { SecuritySettingsCard(viewModel) }
-        }
-
-        if (matches("launcher", "griglia", "dock", "icone", "gesture", "nascoste", "schermo", "orientamento", "immersiva")) {
-            item { SectionHeader("Launcher e schermo") }
-            item { LauncherSettingsCard(viewModel) }
-        }
-
-        if (matches("notifiche", "promemoria", "sveglie", "ricorrenti", "archivia", "automazioni")) {
-        item { SectionHeader("Notifiche e automazioni") }
-        item {
-            SettingsCard {
-                SwitchRow(
-                    title = "Notifiche",
-                    subtitle = if (LifeOSNotifications.hasPermission(context)) "Permesso concesso"
-                    else "Permesso non concesso",
-                    checked = settings.notificationsEnabled,
-                    onCheckedChange = viewModel::setNotificationsEnabled
-                )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                    !LifeOSNotifications.hasPermission(context)
-                ) {
-                    OutlinedButton(onClick = {
-                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }) { Text("Richiedi permesso notifiche") }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = if (ReminderScheduler.canScheduleExact(context)) {
-                        "Sveglie esatte: disponibili"
                     } else {
-                        "Sveglie esatte: non consentite dal sistema (verranno usate sveglie non esatte)"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                    !ReminderScheduler.canScheduleExact(context)
-                ) {
-                    OutlinedButton(onClick = {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
+                        androidx.compose.material3.TextButton(onClick = { /* search action */ }) {
+                            Text("Cerca")
                         }
-                    }) { Text("Consenti sveglie esatte") }
-                }
-                SwitchRow(
-                    title = "Attività ricorrenti automatiche",
-                    subtitle = "Al completamento passa alla prossima occorrenza",
-                    checked = settings.autoRollover,
-                    onCheckedChange = viewModel::setAutoRollover
-                )
-                SwitchRow(
-                    title = "Archivia completate",
-                    subtitle = "Mantiene le attività concluse nello storico",
-                    checked = settings.archiveCompleted,
-                    onCheckedChange = viewModel::setArchiveCompleted
-                )
-            }
-        }
-
-        }
-
-        if (matches("backup", "dati", "privacy", "esporta", "importa", "ripristino")) {
-        item { SectionHeader("Dati e privacy") }
-        item {
-            SettingsCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.size(6.dp))
-                    Column {
-                        Text("Modalità offline sempre attiva", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "L'app non dichiara il permesso INTERNET: nessun dato può uscire.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Nessun account, nessun server: note, attività e promemoria sono salvati " +
-                        "nel DataStore locale dell'app. Il backup è un file JSON che scegli tu.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { exportLauncher.launch("lifeos-backup.json") }) {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Esporta")
-                    }
-                    OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) {
-                        Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Importa")
-                    }
-                }
-                message?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-
-        }
-
-        if (matches("sistema", "home", "permessi", "versione", "info", "android")) {
-        item { SectionHeader("Sistema") }
-        item {
-            SettingsCard {
-                Text(
-                    text = "LifeOS può essere impostata come app Home per usare il launcher " +
-                        "e ospitare widget Android.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedButton(onClick = {
-                    runCatching {
-                        context.startActivity(
-                            Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    }
-                }) { Text("Imposta come app Home") }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.size(6.dp))
-                    Text(
-                        text = "I permessi richiesti servono solo a notifiche, sveglie e launcher.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.size(6.dp))
-                    Text(
-                        text = "LifeOS 3.0 · Android 8+ · Kotlin + Compose Material 3",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-        }
-
-        if (needle.isNotEmpty()) {
-            item {
-                Text(
-                    text = "La ricerca filtra le sezioni delle impostazioni. Cancella il testo per vedere tutto.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(24.dp)) }
-    }
-}
-
-@Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) { content() }
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        RadioButton(selected = checked, onClick = { onCheckedChange(!checked) })
-    }
-}
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Aspetto
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Aspetto", style = MaterialTheme.typography.titleMedium)
+                        Switch(
+                            checked = state.settings.animationsEnabled,
+                            onCheckedChange = { viewModel?.setAnimationsEnabled(it) }
+                        ) { Text("Animazioni") }
+                        Switch(
+                            checked = state.settings.compactLayout,
+                            onCheckedChange = { viewModel?.setCompactLayout(it) }
+                        ) { Text("Layout compatto") }
+                        OutlinedTextField(
+                            value = state.settings.fontScale.toString(),
+                            onValueChange = { viewModel?.setFontScale(it.toFloat()) },
+                            label = { Text("Scala testo") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                        ChipGroup(
+                            selectedIndex = 0,
+                            onSelectIndex = { },
+                            orientation = androidx.compose.material3.Orientation.Horizontal,
+                            contentPadding = PaddingValues(0.dp) {
+                                item { Chip(label = { Text("Classico") }, selected = true, onClick = {}) }
+                                item { Chip(label = { Text("Moderno") }, selected = false, onClick = {}) }
+                                item { Chip(label = { Text("Material You") }, selected = false, onClick = {}) }
+                            }
+                        )
+                    }
+                }
+            }
 
-private fun accentColor(accent: Accent): Color = when (accent) {
-    Accent.BLUE -> Color(0xFF1C6DD0)
-    Accent.GREEN -> Color(0xFF2E7D4F)
-    Accent.PURPLE -> Color(0xFF6C4AB6)
-    Accent.ORANGE -> Color(0xFFB55A3F)
-    Accent.TEAL -> Color(0xFF00695C)
+            // Launcher
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Launcher", style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(
+                            value = state.settings.launcherColumns.toString(),
+                            onValueChange = { viewModel?.setLauncherColumns(it.toInt()) },
+                            label = { Text("Colonne griglia") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = state.settings.launcherRows.toString(),
+                            onValueChange = { viewModel?.setLauncherRows(it.toInt()) },
+                            label = { Text("Righe griglia") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = state.settings.launcherIconSizeDp.toString(),
+                            onValueChange = { viewModel?.setLauncherIconSize(it.toInt()) },
+                            label = { Text("Dimensione icone") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = state.settings.launcherSpacingDp.toString(),
+                            onValueChange = { viewModel?.setLauncherSpacing(it.toInt()) },
+                            label = { Text("Spaziatura") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                        Switch(
+                            checked = state.settings.launcherShowDock,
+                            onCheckedChange = { viewModel?.setLauncherShowDock(it) }
+                        ) { Text("Mostra dock") }
+                        Switch(
+                            checked = state.settings.launcherDockTransparent,
+                            onCheckedChange = { viewModel?.setLauncherDockTransparent(it) }
+                        ) { Text("Dock trasparente") }
+                        Switch(
+                            checked = state.settings.showAppLabels,
+                            onCheckedChange = { viewModel?.setShowAppLabels(it) }
+                        ) { Text("Etichette app") }
+                        ChipGroup(
+                            selectedIndex = 0,
+                            onSelectIndex = { },
+                            orientation = androidx.compose.material3.Orientation.Horizontal,
+                            contentPadding = PaddingValues(0.dp) {
+                                item { Chip(label = { Text("A-Z") }, selected = true, onClick = {}) }
+                                item { Chip(label = { Text("Recenti") }, selected = false, onClick = {}) }
+                                item { Chip(label = { Text("Personalizzato") }, selected = false, onClick = {}) }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Launcher predefinito
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Launcher predefinito", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { viewModel?.setDefaultHomeLauncher() },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Usa LifeOS come launcher predefinito") }
+                        OutlinedButton(
+                            onClick = { viewModel?.clearDefaultHomeLauncher() },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.warning)
+                        ) { Text("Torna al launcher originale") }
+                        OutlinedButton(
+                            onClick = { viewModel?.openAndroidHomeChooser() },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Scegli launcher da Android") }
+                        Text("Attualmente: ${state.settings.defaultHomeLauncher ? "LifeOS" : "Launcher originale"}",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            // Schermo
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Schermo", style = MaterialTheme.typography.titleMedium)
+                        Switch(
+                            checked = state.settings.immersiveMode,
+                            onCheckedChange = { viewModel?.setImmersiveMode(it) }
+                        ) { Text("Modalità immersiva") }
+                        Switch(
+                            checked = state.settings.lockOrientation,
+                            onCheckedChange = { viewModel?.setLockOrientation(it) }
+                        ) { Text("Blocco orientamento") }
+                        OutlinedTextField(
+                            value = state.settings.fontScale.toString(),
+                            onValueChange = { viewModel?.setFontScale(it.toFloat()) },
+                            label = { Text("Dimensione interfaccia") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+
+            // Privacy
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Privacy", style = MaterialTheme.typography.titleMedium)
+                        Switch(
+                            checked = state.settings.screenshotProtection,
+                            onCheckedChange = { viewModel?.setScreenshotProtection(it) }
+                        ) { Text("Protezione screenshot") }
+                        OutlinedButton(
+                            onClick = { /* privacy center */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Centro privacy") }
+                    }
+                }
+            }
+
+            // Sicurezza
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Sicurezza", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { /* change PIN */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Cambia PIN") }
+                        OutlinedButton(
+                            onClick = { /* remove PIN */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                        ) { Text("Rimuovi PIN") }
+                        Switch(
+                            checked = state.settings.biometricEnabled,
+                            onCheckedChange = { viewModel?.setBiometricEnabled(it) }
+                        ) { Text("Biometria") }
+                        OutlinedTextField(
+                            value = "${state.settings.lockTimeoutMinutes} min",
+                            onValueChange = { viewModel?.setLockTimeoutMinutes(it.toInt()) },
+                            label = { Text("Timeout blocco") },
+                            keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+
+            // Documenti
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Documenti", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { /* documents */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Gestisci documenti") }
+                        OutlinedButton(
+                            onClick = { /* export backup */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Backup ed esportazione") }
+                    }
+                }
+            }
+
+            // Produttività
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Produttività", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { /* projects */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Progetti") }
+                        OutlinedButton(
+                            onClick = { /* habits */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Abitudini") }
+                        OutlinedButton(
+                            onClick = { /* pomodoro */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Pomodoro") }
+                    }
+                }
+            }
+
+            // Strumenti
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Strumenti", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { /* tools */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Strumenti") }
+                    }
+                }
+            }
+
+            // Backup
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Backup", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { /* export */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Esporta backup") }
+                        OutlinedButton(
+                            onClick = { /* import */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Importa backup") }
+                    }
+                }
+            }
+
+            // Accessibilità
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Accessibilità", style = MaterialTheme.typography.titleMedium)
+                        Switch(
+                            checked = true, // Always enabled conceptually
+                            onCheckedChange = {}
+                        ) { Text("Contrasto elevato") }
+                        Switch(
+                            checked = true,
+                            onCheckedChange = {}
+                        ) { Text("Riduzione animazioni") }
+                        Switch(
+                            checked = true,
+                            onCheckedChange = {}
+                        ) { Text("Font grandi") }
+                    }
+                }
+            }
+
+            // Informazioni app
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Informazioni app", style = MaterialTheme.typography.titleMedium)
+                        Text("Versione: 3.0", style = MaterialTheme.typography.bodySmall)
+                        Text("Sviluppatore: LifeOS", style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(
+                            onClick = { /* share app info */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Condividi") }
+                    }
+                }
+            }
+
+            // Diagnostica
+            item {
+                Card(modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Diagnostica", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { /* diagnostics */ },
+                            modifier = Modifier.fillMaxWidth().padding(8.dp)
+                        ) { Text("Esegui diagnostica") }
+                    }
+                }
+            }
+        }
+    }
 }

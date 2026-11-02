@@ -2,74 +2,49 @@ package com.lifeos.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Automation
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Chip
+import androidx.compose.material3.ChipGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lifeos.data.Calculator
-import com.lifeos.notifications.LifeOSNotifications
+import com.lifeos.data.Habit
+import com.lifeos.data.LifeOSState
 import com.lifeos.ui.LifeOSViewModel
-import kotlinx.coroutines.delay
-import java.util.Locale
+import com.lifeos.ui.components.EmptyPlaceholder
 
-private val tools = listOf(
-    "Calcolatrice",
-    "Convertitori",
-    "Timer",
-    "Cronometro",
-    "Sveglie",
-    "Spese",
-    "Abitudini",
-    "Spesa",
-    "Password"
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ToolsScreen(viewModel: LifeOSViewModel, initialTab: Int = 0) {
+fun ToolsScreen(viewModel: LifeOSViewModel?, initialTab: Int = 0) {
+    val state = viewModel?.state ?: LifeOSState()
     var tab by remember { mutableStateOf(initialTab) }
 
     LaunchedEffect(initialTab) { tab = initialTab }
@@ -88,6 +63,7 @@ fun ToolsScreen(viewModel: LifeOSViewModel, initialTab: Int = 0) {
                 )
             }
         }
+
         when (tab) {
             0 -> CalculatorTool()
             1 -> ConverterTool()
@@ -97,10 +73,24 @@ fun ToolsScreen(viewModel: LifeOSViewModel, initialTab: Int = 0) {
             5 -> ExpensesTool(viewModel)
             6 -> HabitsTool(viewModel)
             7 -> ShoppingTool(viewModel)
-            else -> PasswordTool(viewModel)
+            8 -> PasswordTool(viewModel)
+            9 -> PomodoroTool(viewModel)
         }
     }
 }
+
+private val tools = listOf(
+    "Calcolatrice",
+    "Convertitori",
+    "Timer",
+    "Cronometro",
+    "Sveglie",
+    "Pomodoro",
+    "Spese",
+    "Abitudini",
+    "Spesa",
+    "Password"
+)
 
 // ----------------------------------------------------------------- calculator
 
@@ -119,12 +109,9 @@ private fun CalculatorTool() {
     )
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
+        Card(modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -170,28 +157,28 @@ private fun CalculatorTool() {
                                     }
                                 },
                                 modifier = modifier,
-                                contentPadding = PaddingValues(0.dp)
+                                contentPadding = androidx.compose.material3.PaddingValues(0.dp)
                             ) { Text("=") }
 
                             "C" -> OutlinedButton(
                                 onClick = { expression = ""; result = "0"; error = null },
                                 modifier = modifier,
-                                contentPadding = PaddingValues(0.dp)
+                                contentPadding = androidx.compose.material3.PaddingValues(0.dp)
                             ) { Text("C") }
 
                             "⌫" -> OutlinedButton(
                                 onClick = { expression = expression.dropLast(1); error = null },
                                 modifier = modifier,
-                                contentPadding = PaddingValues(0.dp)
+                                contentPadding = androidx.compose.material3.PaddingValues(0.dp)
                             ) { Text("⌫") }
 
-                            else -> FilledTonalButton(
+                            else -> FilledButton(
                                 onClick = {
                                     expression += key
                                     error = null
                                 },
                                 modifier = modifier,
-                                contentPadding = PaddingValues(0.dp)
+                                contentPadding = androidx.compose.material3.PaddingValues(0.dp)
                             ) { Text(key) }
                         }
                     }
@@ -217,6 +204,7 @@ private fun TimerTool() {
             remainingMs = (remainingMs - 1000).coerceAtLeast(0)
             if (remainingMs == 0L) {
                 running = false
+                // Notify
                 LifeOSNotifications.notify(
                     context = context,
                     id = 4242,
@@ -229,9 +217,7 @@ private fun TimerTool() {
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
@@ -248,7 +234,7 @@ private fun TimerTool() {
                     value = minutes,
                     onValueChange = { minutes = it.filter { c -> c.isDigit() } },
                     label = { Text("Minuti") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -256,7 +242,7 @@ private fun TimerTool() {
                     value = seconds,
                     onValueChange = { seconds = it.filter { c -> c.isDigit() } },
                     label = { Text("Secondi") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -286,7 +272,7 @@ private fun TimerTool() {
         }
 
         Text(
-            text = "Il timer usa AlarmManager solo per le sveglie; qui il conto alla rovescia gira nell'app e notifica alla fine.",
+            text = "Il timer usa notifiche per la fine; il conto alla rove si avvia nell'app e notifica alla fine.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -295,7 +281,7 @@ private fun TimerTool() {
 
 private fun formatDuration(ms: Long): String {
     val totalSeconds = ms / 1000
-    return String.format(Locale.getDefault(), "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+    return String.format(java.util.Locale.getDefault(), "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
 }
 
 // ------------------------------------------------------------------ cronometro
@@ -317,9 +303,7 @@ private fun StopwatchTool() {
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
@@ -363,21 +347,21 @@ private fun formatStopwatch(ms: Long): String {
     val minutes = ms / 60000
     val seconds = (ms / 1000) % 60
     val hundredths = (ms % 1000) / 10
-    return String.format(Locale.getDefault(), "%02d:%02d.%02d", minutes, seconds, hundredths)
+    return String.format(java.util.Locale.getDefault(), "%02d:%02d.%02d", minutes, seconds, hundredths)
 }
 
 // -------------------------------------------------------------------- sveglie
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AlarmTool(viewModel: LifeOSViewModel) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+private fun AlarmTool(viewModel: LifeOSViewModel?) {
+    val state = viewModel?.state ?: LifeOSState()
     var showAdd by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = androidx.compose.material3.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (state.alarms.isEmpty()) {
@@ -395,14 +379,13 @@ private fun AlarmTool(viewModel: LifeOSViewModel) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = String.format(Locale.getDefault(), "%02d:%02d", alarm.hour, alarm.minute),
+                                text = String.format(java.util.Locale.getDefault(), "%02d:%02d", alarm.hour, alarm.minute),
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -414,9 +397,9 @@ private fun AlarmTool(viewModel: LifeOSViewModel) {
                         }
                         Switch(
                             checked = alarm.enabled,
-                            onCheckedChange = { viewModel.toggleAlarm(alarm.id, it) }
+                            onCheckedChange = { if (viewModel != null) viewModel?.toggleAlarm(alarm.id, it) }
                         )
-                        IconButton(onClick = { viewModel.removeAlarm(alarm.id) }) {
+                        IconButton(onClick = { if (viewModel != null) viewModel?.removeAlarm(alarm.id) }) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Elimina sveglia",
@@ -430,9 +413,7 @@ private fun AlarmTool(viewModel: LifeOSViewModel) {
 
         Button(
             onClick = { showAdd = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.size(6.dp))
@@ -441,14 +422,14 @@ private fun AlarmTool(viewModel: LifeOSViewModel) {
     }
 
     if (showAdd) {
-        val timeState = rememberTimePickerState(initialHour = 7, initialMinute = 30, is24Hour = true)
+        val timeState = androidx.compose.material3.rememberTimePickerState(initialHour = 7, initialMinute = 30, is24Hour = true)
         var label by remember { mutableStateOf("Sveglia") }
         AlertDialog(
             onDismissRequest = { showAdd = false },
             title = { Text("Nuova sveglia") },
             text = {
                 Column {
-                    TimePicker(state = timeState)
+                    androidx.compose.material3.TimePicker(state = timeState)
                     OutlinedTextField(
                         value = label,
                         onValueChange = { label = it },
@@ -458,12 +439,280 @@ private fun AlarmTool(viewModel: LifeOSViewModel) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.addAlarm(timeState.hour, timeState.minute, label.ifBlank { "Sveglia" })
-                    showAdd = false
+                androidx.compose.material3.TextButton(onClick = {
+                    if (viewModel != null) {
+                        viewModel?.addAlarm(timeState.hour, timeState.minute, label.ifBlank { "Sveglia" })
+                        showAdd = false
+                    }
                 }) { Text("Salva") }
             },
-            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Annulla") } }
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { showAdd = false }) { Text("Annulla") } }
+        )
+    }
+}
+
+// ------------------------------------------------------------------- pomodoro
+
+@Composable
+private fun PomodoroTool(viewModel: LifeOSViewModel?) {
+    val context = LocalContext.current
+    var workMinutes by remember { mutableStateOf("25") }
+    var breakMinutes by remember { mutableStateOf("5") }
+    var remainingMs by remember { mutableLongStateOf(0L) }
+    var running by remember { mutableStateOf(false) }
+    var onBreak by remember { mutableStateOf(false) }
+
+    LaunchedEffect(running) {
+        while (running && remainingMs > 0) {
+            delay(1000)
+            remainingMs = (remainingMs - 1000).coerceAtLeast(0)
+            if (remainingMs == 0L) {
+                running = false
+                if (!onBreak) {
+                    viewModel?.startPomodoro(workMinutes.toIntOrNull() ?: 25)
+                    LifeOSNotifications.notify(
+                        context = context,
+                        id = 5555,
+                        channel = LifeOSNotifications.CHANNEL_TIMERS,
+                        title = "Pomodoro completato",
+                        text = "Tempo di pausa."
+                    )
+                    remainingMs = (breakMinutes.toIntOrNull() ?: 5) * 60 * 1000L
+                    onBreak = true
+                } else {
+                    LifeOSNotifications.notify(
+                        context = context,
+                        id = 5556,
+                        channel = LifeOSNotifications.CHANNEL_TIMERS,
+                        title = "Pausa terminata",
+                        text = "Pronto per una nuova sessione."
+                    )
+                    remainingMs = (workMinutes.toIntOrNull() ?: 25) * 60 * 1000L
+                    onBreak = false
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = if (onBreak) "Pausa" else "Lavoro",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            text = formatDuration(remainingMs),
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        if (!running && remainingMs == 0L) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = workMinutes,
+                    onValueChange = { workMinutes = it.filter { c -> c.isDigit() } },
+                    label = { Text("Lavoro (min)") },
+                    keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = breakMinutes,
+                    onValueChange = { breakMinutes = it.filter { c -> c.isDigit() } },
+                    label = { Text("Pausa (min)") },
+                    keyboardOptions = androidx.compose.material3.KeyboardOptions(keyboardType = androidx.compose.material3.KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = {
+                    if (running) {
+                        running = false
+                    } else {
+                        if (remainingMs == 0L) {
+                            remainingMs = (workMinutes.toIntOrNull() ?: 25) * 60 * 1000L
+                            onBreak = false
+                        }
+                        running = remainingMs > 0
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text(if (running) "Pausa" else "Avvia") }
+            OutlinedButton(
+                onClick = { running = false; remainingMs = 0; onBreak = false },
+                modifier = Modifier.weight(1f)
+            ) { Text("Reset") }
+        }
+        Text(
+            text = "Pomodoro locale con notifiche.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// ----------------------------------------------------------------- expenses
+
+@Composable
+private fun ExpensesTool(viewModel: LifeOSViewModel?) {
+    val state = viewModel?.state ?: LifeOSState()
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Spese", style = MaterialTheme.typography.titleMedium)
+        Text("Budget mensile: ${state.settings.monthlyBudgetCents} centesimi", style = MaterialTheme.typography.bodySmall)
+        Text("Spesa totale mese: ${state.monthExpenseTotalCents}", style = MaterialTheme.typography.bodySmall)
+        
+        if (state.expenses.isEmpty()) {
+            Text("Nessuna spesa registrata", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(state.expenses, key = { it.id }) { expense ->
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${expense.label}: ${expense.amountCents}¢", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(java.text.NumberFormat.getCurrencyInstance(java.util.Locale.getDefault()).format(expense.amountCents.toDouble()), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+        
+        OutlinedButton(
+            onClick = { /* add expense */ },
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) { Text("Aggiungi spesa") }
+    }
+}
+
+// ----------------------------------------------------------------- habits
+
+@Composable
+private fun HabitsTool(viewModel: LifeOSViewModel?) {
+    val state = viewModel?.state ?: LifeOSState()
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Abitudini", style = MaterialTheme.typography.titleMedium)
+        
+        if (state.habits.isEmpty()) {
+            Text("Nessuna abitudine registrata", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(state.habits, key = { it.id }) { habit ->
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(habit.name, style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Serie: ${habitStreak(habit)}", style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary)
+                            }
+                            Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Oggi: ${if (isDayCompleted(habit, epochDay())) "Fatto" else "No"}",
+                                    style = MaterialTheme.typography.labelSmall)
+                                OutlinedButton(
+                                    onClick = { /* toggle habit today */ },
+                                    mini = true
+                                ) { Text("Giorno") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun isDayCompleted(habit: Habit, day: Long): Boolean {
+    return (habit.completedDays.toSet()).contains(day)
+}
+
+private fun epochDay(millis: Long = System.currentTimeMillis()): Long {
+    val calendar = java.util.Calendar.getInstance().apply { timeInMillis = millis }
+    val zone = calendar.timeZone
+    val offset = zone.getOffset(calendar.timeInMillis)
+    return (millis + offset).floorDiv(86_400_000L)
+}
+
+// ----------------------------------------------------------------- password
+
+@Composable
+private fun PasswordTool(viewModel: LifeOSViewModel?) {
+    val state = viewModel?.state ?: LifeOSState()
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Password", style = MaterialTheme.typography.titleMedium)
+        
+        if (state.vault.isEmpty()) {
+            Text("Nessuna password salvata", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(state.vault, key = { it.id }) { password ->
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text(password.title, style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                OutlinedButton(
+                                    onClick = { /* reveal password */ },
+                                    mini = true
+                                ) { Text("Mostra") }
+                            }
+                            Text("Ultimo accesso: recente", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+        
+        OutlinedButton(
+            onClick = { /* add password */ },
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) { Text("Aggiungi password") }
+    }
+}
+
+// ----------------------------------------------------------------- converters
+
+@Composable
+private fun ConverterTool() {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Convertitori", style = MaterialTheme.typography.titleMedium)
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            label = { Text("Lunghezza") },
+            modifier = Modifier.fillMaxWidth().padding(4.dp)
+        )
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            label = { Text("Peso") },
+            modifier = Modifier.fillMaxWidth().padding(4.dp)
+        )
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            label = { Text("Volume") },
+            modifier = Modifier.fillMaxWidth().padding(4.dp)
+        )
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            label = { Text("Temperatura") },
+            modifier = Modifier.fillMaxWidth().padding(4.dp)
         )
     }
 }

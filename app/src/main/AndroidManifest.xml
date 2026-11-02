@@ -10,6 +10,16 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- Used only by the optional "swipe down for notifications" gesture. -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <!-- Contacts: for local contact management (optional, requires user consent) -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Storage: for file manager operations -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Camera: for document scanning and avatar capture (optional) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Audio: for recording and audio tools -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Full screen intent: for certain launcher and dashboard behaviors -->
+    <uses-permission android:name="android.permission.FULL_SCREEN_INTENT" />
     <!-- Photos are captured through the system camera app, so no CAMERA
          permission is requested by LifeOS itself. -->
 
