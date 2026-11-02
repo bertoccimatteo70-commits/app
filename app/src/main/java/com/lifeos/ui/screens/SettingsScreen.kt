@@ -81,12 +81,12 @@ fun SettingsScreen(viewModel: LifeOSViewModel?, query: String = "", onQueryChang
                         )
                         ChipGroup(
                             selectedIndex = 0,
-                            onSelectIndex = { },
+                            onSelectIndex = { index -> /* handled via theme preset selection */ },
                             orientation = androidx.compose.material3.Orientation.Horizontal,
                             contentPadding = PaddingValues(0.dp) {
-                                item { Chip(label = { Text("Classico") }, selected = true, onClick = {}) }
-                                item { Chip(label = { Text("Moderno") }, selected = false, onClick = {}) }
-                                item { Chip(label = { Text("Material You") }, selected = false, onClick = {}) }
+                                item { Chip(label = { Text("Classico") }, selected = true, onClick = { viewModel?.saveThemePreset("Classico") } ) }
+                                item { Chip(label = { Text("Moderno") }, selected = false, onClick = { viewModel?.saveThemePreset("Moderno") } ) }
+                                item { Chip(label = { Text("Material You") }, selected = false, onClick = { viewModel?.saveThemePreset("Material You") } ) }
                             }
                         )
                     }
@@ -138,17 +138,17 @@ fun SettingsScreen(viewModel: LifeOSViewModel?, query: String = "", onQueryChang
                         Switch(
                             checked = state.settings.showAppLabels,
                             onCheckedChange = { viewModel?.setShowAppLabels(it) }
-                        ) { Text("Etichette app") }
-                        ChipGroup(
+                        ) { Text("Etichette app") }ChipGroup(
                             selectedIndex = 0,
-                            onSelectIndex = { },
+                            onSelectIndex = { index -> /* sorting mode selection */ },
                             orientation = androidx.compose.material3.Orientation.Horizontal,
                             contentPadding = PaddingValues(0.dp) {
-                                item { Chip(label = { Text("A-Z") }, selected = true, onClick = {}) }
-                                item { Chip(label = { Text("Recenti") }, selected = false, onClick = {}) }
-                                item { Chip(label = { Text("Personalizzato") }, selected = false, onClick = {}) }
+                                item { Chip(label = { Text("A-Z") }, selected = true, onClick = { viewModel?.setLauncherSort(LauncherSort.AZ) } ) }
+                                item { Chip(label = { Text("Recenti") }, selected = false, onClick = { viewModel?.setLauncherSort(LauncherSort.Recenti) } ) }
+                                item { Chip(label = { Text("Personalizzato") }, selected = false, onClick = { viewModel?.setLauncherSort(LauncherSort.Personalizzato) } ) }
                             }
                         )
+
                     }
                 }
             }
@@ -228,11 +228,12 @@ fun SettingsScreen(viewModel: LifeOSViewModel?, query: String = "", onQueryChang
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Sicurezza", style = MaterialTheme.typography.titleMedium)
                         OutlinedButton(
-                            onClick = { /* change PIN */ },
+                            onClick = { viewModel?.setPin("") }
+                            /* TODO: implement PIN change UI */,
                             modifier = Modifier.fillMaxWidth().padding(8.dp)
                         ) { Text("Cambia PIN") }
                         OutlinedButton(
-                            onClick = { /* remove PIN */ },
+                            onClick = { viewModel?.removePin() }
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                         ) { Text("Rimuovi PIN") }
@@ -330,16 +331,16 @@ fun SettingsScreen(viewModel: LifeOSViewModel?, query: String = "", onQueryChang
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Accessibilità", style = MaterialTheme.typography.titleMedium)
                         Switch(
-                            checked = true, // Always enabled conceptually
-                            onCheckedChange = {}
+                            checked = state.settings.highContrast,
+                            onCheckedChange = { viewModel?.setHighContrast(it) }
                         ) { Text("Contrasto elevato") }
                         Switch(
-                            checked = true,
-                            onCheckedChange = {}
+                            checked = state.settings.reduceMotion,
+                            onCheckedChange = { viewModel?.setReduceMotion(it) }
                         ) { Text("Riduzione animazioni") }
                         Switch(
-                            checked = true,
-                            onCheckedChange = {}
+                            checked = state.settings.largeFont,
+                            onCheckedChange = { viewModel?.setLargeFont(it) }
                         ) { Text("Font grandi") }
                     }
                 }

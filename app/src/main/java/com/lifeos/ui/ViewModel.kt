@@ -366,6 +366,9 @@ class LifeOSViewModel(context: Context) : ViewModel() {
 
     fun setBiometricEnabled(enabled: Boolean) = updateSettings { it.copy(biometricEnabled = enabled) }
     fun setLockTimeoutMinutes(minutes: Int) = updateSettings { it.copy(lockTimeoutMinutes = minutes.coerceIn(0, 60)) }
+    fun setHighContrast(enabled: Boolean) = updateSettings { it.copy(highContrast = enabled) }
+    fun setReduceMotion(enabled: Boolean) = updateSettings { it.copy(reduceMotion = enabled) }
+    fun setLargeFont(enabled: Boolean) = updateSettings { it.copy(largeFont = enabled) }
 
     // ------------------------------------------------------------ tema e ricerca
 
