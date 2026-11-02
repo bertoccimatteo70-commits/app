@@ -6,6 +6,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
 import com.lifeos.data.Accent
 import com.lifeos.data.ThemeMode
@@ -106,8 +108,10 @@ fun LifeOSTheme(
     accent: Accent = Accent.BLUE,
     animationsEnabled: Boolean = true,
     compactLayout: Boolean = false,
+    fontScale: Float = 1f,
     content: @Composable () -> Unit
 ) {
+    val density = LocalDensity.current
     val dark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
@@ -120,6 +124,7 @@ fun LifeOSTheme(
         CompositionLocalProvider(
             LocalAnimationsEnabled provides animationsEnabled,
             LocalCompactLayout provides compactLayout,
+            LocalDensity provides Density(density.density, density.fontScale * fontScale.coerceIn(0.8f, 1.4f)),
             content = content
         )
     }

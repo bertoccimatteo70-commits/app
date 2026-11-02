@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,14 +56,28 @@ import com.lifeos.ui.LifeOSViewModel
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-private val tools = listOf("Calcolatrice", "Timer", "Cronometro", "Sveglie")
+private val tools = listOf(
+    "Calcolatrice",
+    "Convertitori",
+    "Timer",
+    "Cronometro",
+    "Sveglie",
+    "Spese",
+    "Abitudini",
+    "Spesa",
+    "Password"
+)
 
 @Composable
 fun ToolsScreen(viewModel: LifeOSViewModel) {
     var tab by remember { mutableStateOf(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = tab) {
+        ScrollableTabRow(
+            selectedTabIndex = tab,
+            edgePadding = 8.dp,
+            containerColor = MaterialTheme.colorScheme.background
+        ) {
             tools.forEachIndexed { index, label ->
                 Tab(
                     selected = tab == index,
@@ -73,9 +88,14 @@ fun ToolsScreen(viewModel: LifeOSViewModel) {
         }
         when (tab) {
             0 -> CalculatorTool()
-            1 -> TimerTool()
-            2 -> StopwatchTool()
-            else -> AlarmTool(viewModel)
+            1 -> ConverterTool()
+            2 -> TimerTool()
+            3 -> StopwatchTool()
+            4 -> AlarmTool(viewModel)
+            5 -> ExpensesTool(viewModel)
+            6 -> HabitsTool(viewModel)
+            7 -> ShoppingTool(viewModel)
+            else -> PasswordTool(viewModel)
         }
     }
 }

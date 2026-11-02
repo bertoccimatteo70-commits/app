@@ -7,8 +7,12 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
@@ -24,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -86,6 +91,16 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
     var query by remember { mutableStateOf("") }
     var showWidgetPicker by remember { mutableStateOf(false) }
     var widgetMessage by remember { mutableStateOf<String?>(null) }
+    var menuApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var iconTarget by remember { mutableStateOf<String?>(null) }
+
+    val iconPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        val packageName = iconTarget
+        iconTarget = null
+        if (uri != null && packageName != null) {
+            viewModel.setAppIcon(packageName, viewModel.pickAppIcon(packageName, uri))
+        }
+    }
 
     LaunchedEffect(Unit) {
         apps = withContext(Dispatchers.IO) { loadInstalledApps(context) }
@@ -149,7 +164,12 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(apps.filter { it.packageName in favorites }) { app ->
-                    AppFavorite(app = app, onClick = { launchApp(context, app.packageName) })
+                    AppFavorite(
+                        app = app,
+                        displayLabel = state.settings.appNameOverrides[app.packageName] ?: app.label,
+                        iconPath = state.settings.appIconOverrides[app.packageName],
+                        onClick = { launchApp(context, app.packageName) }
+                    )
                 }
             }
         }
@@ -185,19 +205,38 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        } else if (state.settings.drawerAsList) {
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                items(filtered) { app ->
+                    AppListRow(
+                        app = app,
+                        displayLabel = state.settings.appNameOverrides[app.packageName] ?: app.label,
+                        iconPath = state.settings.appIconOverrides[app.packageName],
+                        onClick = { launchApp(context, app.packageName) },
+                        onLongClick = { menuApp = app }
+                    )
+                }
+            }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+                columns = GridCells.Fixed(state.settings.launcherColumns),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(state.settings.launcherSpacingDp.dp),
+                horizontalArrangement = Arrangement.spacedBy(state.settings.launcherSpacingDp.dp)
             ) {
                 items(filtered) { app ->
                     AppTile(
                         app = app,
+                        displayLabel = state.settings.appNameOverrides[app.packageName] ?: app.label,
+                        iconPath = state.settings.appIconOverrides[app.packageName],
+                        iconSize = state.settings.launcherIconSizeDp,
+                        showLabel = state.settings.showAppLabels,
                         favorite = app.packageName in favorites,
                         onClick = { launchApp(context, app.packageName) },
-                        onLongClick = { viewModel.onFavoriteToggle(app.packageName) }
+                        onLongClick = { menuApp = app }
                     )
                 }
             }
@@ -211,12 +250,73 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
             onDismissDialog = { showWidgetPicker = false }
         )
     }
+
+    menuApp?.let { app ->
+        val packageName = app.packageName
+        val overriddenName = state.settings.appNameOverrides[packageName]
+        var renameText by remember(packageName) { mutableStateOf(overriddenName ?: app.label) }
+        AlertDialog(
+            onDismissRequest = { menuApp = null },
+            title = { Text(if (overriddenName != null) "$overriddenName (${app.label})" else app.label) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("Nome visualizzato") },
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AssistChip(
+                            onClick = { viewModel.renameApp(packageName, renameText.trim()) },
+                            label = { Text("Salva nome") }
+                        )
+                        AssistChip(
+                            onClick = { viewModel.renameApp(packageName, "") },
+                            label = { Text("Nome originale") }
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AssistChip(
+                            onClick = {
+                                iconTarget = packageName
+                                iconPicker.launch(arrayOf("image/*"))
+                            },
+                            label = { Text("Scegli icona") }
+                        )
+                        AssistChip(
+                            onClick = { viewModel.setAppIcon(packageName, null) },
+                            label = { Text("Icona originale") }
+                        )
+                    }
+                    TextButton(onClick = {
+                        viewModel.onFavoriteToggle(packageName)
+                        menuApp = null
+                    }) {
+                        Text(if (packageName in state.settings.launcherFavorites) "Rimuovi dai preferiti" else "Aggiungi ai preferiti")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    launchApp(context, packageName)
+                    menuApp = null
+                }) { Text("Apri") }
+            },
+            dismissButton = { TextButton(onClick = { menuApp = null }) { Text("Chiudi") } }
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AppTile(
     app: InstalledApp,
+    displayLabel: String,
+    iconPath: String?,
+    iconSize: Int,
+    showLabel: Boolean,
     favorite: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
@@ -227,7 +327,7 @@ private fun AppTile(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
-            AppIcon(app = app, size = 52)
+            AppIcon(app = app, size = iconSize, iconPath = iconPath, label = displayLabel)
             if (favorite) {
                 Icon(
                     imageVector = Icons.Default.Star,
@@ -237,29 +337,58 @@ private fun AppTile(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        if (showLabel) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = displayLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppListRow(
+    app: InstalledApp,
+    displayLabel: String,
+    iconPath: String?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AppIcon(app = app, size = 36, iconPath = iconPath, label = displayLabel)
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = app.label,
-            style = MaterialTheme.typography.labelSmall,
+            text = displayLabel,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
 @Composable
-private fun AppFavorite(app: InstalledApp, onClick: () -> Unit) {
+private fun AppFavorite(app: InstalledApp, displayLabel: String, iconPath: String?, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(72.dp)
             .combinedClickable(enabled = true, onClick = onClick, onLongClick = {})
     ) {
-        AppIcon(app = app, size = 44)
+        AppIcon(app = app, size = 44, iconPath = iconPath, label = displayLabel)
         Text(
-            text = app.label,
+            text = displayLabel,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -269,14 +398,18 @@ private fun AppFavorite(app: InstalledApp, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AppIcon(app: InstalledApp, size: Int) {
-    val bitmap = remember(app.packageName) {
-        app.icon?.toBitmap(width = 144, height = 144)?.asImageBitmap()
+private fun AppIcon(app: InstalledApp, size: Int, iconPath: String? = null, label: String = app.label) {
+    val bitmap = remember(app.packageName, iconPath) {
+        val custom = iconPath
+            ?.let { java.io.File(it) }
+            ?.takeIf { it.exists() }
+            ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+        (custom ?: app.icon?.toBitmap(width = 144, height = 144))?.asImageBitmap()
     }
     if (bitmap != null) {
         Image(
             bitmap = bitmap,
-            contentDescription = app.label,
+            contentDescription = label,
             modifier = Modifier.size(size.dp)
         )
     } else {
@@ -286,7 +419,7 @@ private fun AppIcon(app: InstalledApp, size: Int) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Text(app.label.take(1).uppercase(), style = MaterialTheme.typography.titleMedium)
+                Text(label.take(1).uppercase(), style = MaterialTheme.typography.titleMedium)
             }
         }
     }

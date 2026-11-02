@@ -164,6 +164,12 @@ fun SettingsScreen(viewModel: LifeOSViewModel) {
             }
         }
 
+        item { SectionHeader("Sicurezza e privacy") }
+        item { SecuritySettingsCard(viewModel) }
+
+        item { SectionHeader("Launcher e schermo") }
+        item { LauncherSettingsCard(viewModel) }
+
         item { SectionHeader("Notifiche e automazioni") }
         item {
             SettingsCard {

@@ -52,12 +52,31 @@ data class UserSettings(
     val accent: Accent = Accent.BLUE,
     val animationsEnabled: Boolean = true,
     val compactLayout: Boolean = false,
+    val fontScale: Float = 1f,
     val notificationsEnabled: Boolean = true,
     val autoRollover: Boolean = true,
     val archiveCompleted: Boolean = false,
     val offlineMode: Boolean = true,
     val launcherFavorites: List<String> = emptyList(),
-    val dashboardWidgets: List<WidgetSetting> = defaultWidgetSettings()
+    val dashboardWidgets: List<WidgetSetting> = defaultWidgetSettings(),
+    // --- sicurezza ---
+    val pinHash: String = "",
+    val pinSalt: String = "",
+    val biometricEnabled: Boolean = false,
+    val lockTimeoutMinutes: Int = 5,
+    // --- launcher e personalizzazione ---
+    val launcherColumns: Int = 4,
+    val launcherIconSizeDp: Int = 56,
+    val launcherSpacingDp: Int = 10,
+    val showAppLabels: Boolean = true,
+    val drawerAsList: Boolean = false,
+    val immersiveMode: Boolean = false,
+    val lockOrientation: Boolean = false,
+    val appNameOverrides: Map<String, String> = emptyMap(),
+    val appIconOverrides: Map<String, String> = emptyMap(),
+    val homeBackground: HomeBackground = HomeBackground.SURFACE,
+    // --- spese ---
+    val monthlyBudgetCents: Long = 0
 )
 
 fun defaultWidgetSettings(): List<WidgetSetting> = listOf(
@@ -83,6 +102,12 @@ data class LifeOSState(
     val goals: List<Goal> = emptyList(),
     val reminders: List<Reminder> = emptyList(),
     val alarms: List<Alarm> = emptyList(),
+    val documents: List<Document> = emptyList(),
+    val subscriptions: List<Subscription> = emptyList(),
+    val expenses: List<Expense> = emptyList(),
+    val vault: List<PasswordEntry> = emptyList(),
+    val habits: List<Habit> = emptyList(),
+    val shopping: List<ShoppingItem> = emptyList(),
     val settings: UserSettings = UserSettings()
 )
 

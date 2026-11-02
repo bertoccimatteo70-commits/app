@@ -1,5 +1,6 @@
 package com.lifeos.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +11,7 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Home
@@ -34,8 +36,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.data.HomeBackground
 import com.lifeos.ui.LifeOSViewModel
 
 enum class Tab(val label: String, val icon: ImageVector) {
@@ -45,6 +51,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Notes("Note", Icons.Default.Description),
     Deadlines("Scadenze", Icons.Default.Schedule),
     Calendar("Calendario", Icons.Default.CalendarMonth),
+    Documents("Documenti", Icons.Default.Folder),
     Goals("Obiettivi", Icons.Default.Flag),
     Dashboard("Dashboard", Icons.Default.Insights),
     Widgets("Widget", Icons.Default.Widgets),
@@ -56,14 +63,33 @@ enum class Tab(val label: String, val icon: ImageVector) {
 @Composable
 fun LifeOSScreen(
     viewModel: LifeOSViewModel,
-    initialTab: Tab = Tab.Home
+    initialTab: Tab = Tab.Home,
+    immersive: Boolean = false
 ) {
     var activeTab by rememberSaveable { mutableIntStateOf(initialTab.ordinal) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    val background = when (state.settings.homeBackground) {
+        HomeBackground.SURFACE -> Brush.verticalGradient(
+            listOf(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.background)
+        )
+        HomeBackground.GRADIENT -> Brush.verticalGradient(
+            listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                MaterialTheme.colorScheme.background
+            )
+        )
+        HomeBackground.DARK -> Brush.verticalGradient(
+            listOf(Color(0xFF05070A), MaterialTheme.colorScheme.background)
+        )
+    }
 
     Scaffold(
+        containerColor = Color.Transparent,
         modifier = Modifier
             .fillMaxSize()
-            .safeDrawingPadding(),
+            .background(background)
+            .then(if (immersive) Modifier else Modifier.safeDrawingPadding()),
         topBar = {
             TopAppBar(
                 title = {
@@ -126,6 +152,7 @@ fun LifeOSScreen(
                     Tab.Notes -> NotesScreen(viewModel = viewModel)
                     Tab.Deadlines -> DeadlinesScreen(viewModel = viewModel)
                     Tab.Calendar -> CalendarScreen(viewModel = viewModel)
+                    Tab.Documents -> DocumentsScreen(viewModel = viewModel)
                     Tab.Goals -> GoalsScreen(viewModel = viewModel)
                     Tab.Dashboard -> DashboardScreen(viewModel = viewModel)
                     Tab.Widgets -> WidgetScreen(viewModel = viewModel)

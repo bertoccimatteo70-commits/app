@@ -13,6 +13,14 @@ class BackupTests {
         .addingGoal("Leggere")
         .addingReminder("Chiamare", 99_000L, RepeatRule.WEEKLY)
         .addingAlarm(7, 30, "Sveglia")
+        .addingDocument("Patente", category = "Identità", expiryMillis = 4_000L, tags = listOf("guida"))
+        .addingSubscription("Palestra", 3_000L, nextDueMillis = 5_000L)
+        .addingExpense("Caffè", 150L)
+        .addingHabit("Corsa")
+        .addingShoppingItem("Pane", "1")
+        .addingPasswordEntry(
+            PasswordEntry(title = "Banca", username = "me", cipherText = "cipher", iv = "iv")
+        )
         .togglingWidget(WidgetKind.GOALS)
 
     @Test
