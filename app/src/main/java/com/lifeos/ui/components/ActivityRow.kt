@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.data.Activity
+import com.lifeos.ui.theme.LocalAnimationsEnabled
 
 @Composable
 fun ActivityRow(
@@ -33,9 +34,10 @@ fun ActivityRow(
     onRemove: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val animationsEnabled = LocalAnimationsEnabled.current
     val checked by animateColorAsState(
         targetValue = if (activity.done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = if (animationsEnabled) 220 else 0),
         label = "activityCheckColor"
     )
     Card(

@@ -14,8 +14,8 @@ android {
         applicationId = "com.lifeos"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -30,6 +30,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // CI needs an installable release APK and no signing key is checked in.
+            // Debug signing is used for that artifact only; a store build must
+            // supply a real keystore instead.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

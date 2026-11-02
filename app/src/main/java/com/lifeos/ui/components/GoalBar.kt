@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeos.data.Goal
+import com.lifeos.ui.theme.LocalAnimationsEnabled
 
 @Composable
 fun GoalBar(
@@ -34,9 +35,10 @@ fun GoalBar(
         MaterialTheme.colorScheme.primary
     else
         MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+    val animationsEnabled = LocalAnimationsEnabled.current
     val animatedProgress by animateFloatAsState(
         targetValue = goal.progressPercent / 100f,
-        animationSpec = tween(350),
+        animationSpec = tween(if (animationsEnabled) 350 else 0),
         label = "goalProgress"
     )
     Row(
