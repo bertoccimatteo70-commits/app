@@ -23,6 +23,10 @@ android {
         }
     }
 
+    buildFeatures {
+        compose = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -38,9 +42,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "21"
-    }
-    buildFeatures {
-        compose = true
     }
     packaging {
         resources {
@@ -63,4 +64,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
+
+    testImplementation(libs.junit)
 }
