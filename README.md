@@ -17,6 +17,7 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 | Documenti | archivio con categorie, tag, preferiti, ricerca e ordinamento; scadenza con promemoria automatico 24h prima; allegati copiati nella memoria privata; condivisione via FileProvider; foto del documento tramite fotocamera di sistema |
 | Abbonamenti | importo, prossima scadenza, ricorrenza, attivo/disattivo, evidenza di quelli in scadenza |
 | Spese | inserimento in centesimi, totale del mese, budget mensile con percentuale di consumo |
+| Finanze | entrate e uscite del mese con saldo, budget per categoria (sforamento evidenziato), abbonamenti normalizzati su mese/anno, andamento degli ultimi 6 mesi, export CSV di tutti i movimenti |
 | Abitudini | spunta giornaliera, serie attuale e record calcolati dalle date salvate |
 | Lista della spesa | articoli con quantità, completamento, pulizia dei completati |
 | Password | gestore locale: ogni segreto è cifrato con AES-256-GCM e chiave non esportabile dell'Android Keystore |
@@ -26,7 +27,9 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 | Backup | export/import JSON versionato; in più backup cifrato AES-256-GCM con password (PBKDF2), import che rischedula i promemoria |
 | Sicurezza | PIN con hash PBKDF2 e salt, blocco biometrico, timeout di blocco configurabile, blocco temporaneo dopo 5 tentativi, registro locale eventi, blocco screenshot, recupero PIN tramite reset dichiarato, cancellazione selettiva (documenti, password, tutto) |
 | Privacy | centro privacy con stato reale dei permessi e scorciatoie alle impostazioni Android, informativa interna, registro eventi, elenco trasparente dei dati trattati |
-| Aspetto | tema sistema/chiaro/scuro, 5 accenti, animazioni on/off, layout compatto, scala del testo, sfondo Home, modalità immersiva, blocco orientamento |
+| Temi | tema sistema/chiaro/scuro/automatico per orario, 5 accenti, colori HEX personalizzati con verifica contrasto WCAG, angoli 0-32 dp, scala del testo, animazioni, layout compatto, temi salvati con nome, applicazione, eliminazione, export/import JSON, ripristino |
+| Ricerca universale | Command Center dalla barra superiore: attività, note, scadenze, documenti, obiettivi, promemoria, abitudini, spese, entrate, abbonamenti e sezioni delle impostazioni; filtri per categoria, cronologia, apertura diretta del risultato, password incluse solo su richiesta esplicita |
+| Aspetto | tema sistema/chiaro/scuro/orario, 5 accenti, animazioni on/off, layout compatto, scala del testo, sfondo Home, modalità immersiva, blocco orientamento |
 
 ## Sicurezza e privacy
 
@@ -38,6 +41,8 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - L'informativa privacy completa è dentro l'app (scheda Privacy e Impostazioni → Sicurezza e privacy).
 - "Cancella tutto" elimina dati, allegati, icone personalizzate, sfondi, promemoria programmati e la chiave di crittografia.
 - Il registro eventi è locale, limitato a 200 voci e contiene solo tipo di evento e data: mai PIN, password o contenuti.
+- La ricerca globale lavora solo sullo stato in memoria dell'app: non esiste un indice su disco da rubare e nessuna query viene inviata altrove. Le credenziali compaiono nei risultati solo se l'utente attiva l'opzione e comunque non viene mai mostrato il testo cifrato.
+- I temi sono semplici preferenze locali; l'export contiene solo colori, modalità e misure, non dati personali.
 - Il blocco screenshot usa `FLAG_SECURE` quando l'opzione è attiva; non protegge da foto scattate con un altro dispositivo.
 - Il recupero del PIN è volutamente un reset completo: LifeOS non conserva il PIN né una copia leggibile dei dati, quindi non esiste un recupero che non distrugga i dati.
 
@@ -50,7 +55,10 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - **Gestione file / download**: non implementata. Su Android 11+ richiederebbe `MANAGE_EXTERNAL_STORAGE`, che Google Play limita a file manager dichiarati; alternativa concreta: browser via Storage Access Framework su cartella scelta dall'utente.
 - **Rubrica e contatti**: non implementata (avrebbe richiesto READ_CONTACTS e una UI dedicata).
 - **Automazioni locali**: non implementate. Android non consente di cambiare modalità notte o avviare azioni di sistema da un'app senza permessi speciali (WRITE_SECURE_SETTINGS / accessibilità): restano fuori per non chiedere permessi che promettono più di quanto possano fare.
-- **Ricerca globale, produttività avanzata e file manager**: non ancora implementati (fasi C-G della roadmap sotto).
+- **Ricerca globale**: copre i dati presenti nell'app e le sezioni delle impostazioni. Non legge il testo dentro PDF/immagini (nessun OCR) e le credenziali compaiono solo attivando l'opzione dedicata, senza mai mostrare il testo cifrato.
+- **Tema automatico per orario**: il cambio giorno/notte è valutato quando l'app si ricompone o viene riaperta; non c'è un job che cambia i colori alle 20:00 con l'app in primo piano.
+- **Export finanziario**: CSV con separatore `;` e decimali con virgola per i fogli di calcolo italiani; l'export PDF dei report non è implementato.
+- **File manager, scanner/OCR, automazioni, rubrica e cassaforte file**: non ancora implementati (fasi C-G della roadmap sotto).
 - **Widget Android**: l'hosting funziona solo se LifeOS è impostata come app Home; senza quel ruolo il sistema nega il binding e l'app lo spiega.
 - **Sveglie**: mostrano una notifica, non una schermata a tutto schermo con suoneria prolungata.
 - **Sveglie esatte**: dipendono dal permesso `SCHEDULE_EXACT_ALARM`; se negato si usano sveglie non esatte.
@@ -59,13 +67,16 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 
 ## Test
 
-`./gradlew :app:testDebugUnitTest` esegue 82 test unitari:
+`./gradlew :app:testDebugUnitTest` esegue 108 test unitari:
 
 - modello dati, transizioni e backup (`LifeOSDataTests`, `UserInteractionsTests`, `WidgetModelTests`, `BackupTests`);
 - calcolatrice (`CalculatorTests`);
 - documenti, abbonamenti, spese, abitudini, spesa, override del launcher, formattazione importi, convertitori (`PersonalTests`);
 - launcher, cartelle, pagine, dock, ordinamenti, parser icon pack, lockout e registro eventi (`LauncherTests`);
-- PIN, backup cifrato e rilevamento manomissioni (`SecurityTests`).
+- PIN, backup cifrato e rilevamento manomissioni (`SecurityTests`);
+- tema: parser HEX, contrasto WCAG, palette con override, orario notturno, preset salvati e import/export temi (`ThemeTests`);
+- ricerca: corpo delle note, filtri, ranking, password nascoste, cronologia (`SearchTests`);
+- finanze: saldo, budget per categoria, serie mensile, abbonamenti normalizzati, escaping CSV (`FinanceTests`).
 
 I test UI strumentali non sono inclusi: richiedono un emulatore, non disponibile nell'ambiente di build usato.
 
@@ -73,15 +84,25 @@ I test UI strumentali non sono inclusi: richiedono un emulatore, non disponibile
 
 | Fase | Contenuto | Stato |
 | --- | --- | --- |
-| A | Launcher, icone, cartelle, pagine, dock, personalizzazione, modalità immersiva | **completata** (icon pack limitati ai temi con `appfilter.xml`) |
+| A | Launcher, icone, cartelle, pagine, dock, personalizzazione, modalità immersiva | **completata** (icon pack limitati ai temi con `appfilter.xml`); tema avanzato aggiunto in 3.0 |
 | B | Privacy, sicurezza, crittografia, registro eventi, blocco screenshot, cancellazione selettiva | **completata** per le funzioni elencate; mancano blocco per-app e cifratura degli allegati |
 | C | Documenti, scanner, OCR e burocrazia | **non iniziata**: l'archivio documenti esistente resta disponibile, scanner/OCR richiedono una scelta esplicita sulla dipendenza (modello offline) |
 | D | File manager, strumenti e gestione quotidiana | **non iniziata** |
 | E | Sveglie, notifiche e automazioni | parziale: sveglie con AlarmManager e canali separati già presenti; mancano schermata full-screen, snooze e automazioni |
-| F | Dashboard, ricerca globale e produttività | **non iniziata** |
+| F | Dashboard, ricerca globale e produttività | **parziale in 3.0**: Command Center implementato e collegato ai dati reali; restano calendario multi-vista, progetti, sottoattività e note con cestino |
 | G | Accessibilità, backup, ottimizzazione e test finali | parziale: backup versionato e cifrato già presenti; audit accessibilità e test UI strumentali mancano |
 
 Le fasi non ancora iniziate non hanno pulsanti finti: semplicemente non sono presenti nell'interfaccia.
+
+## LifeOS 3.0 — cosa è cambiato in questo blocco
+
+| Modulo | Implementazione reale |
+| --- | --- |
+| Theme Studio | colori HEX validati (`#RGB`, `#RRGGBB`, `#AARRGGBB`), anteprima, contrasto AA calcolato, angoli, densità, etichette, tema automatico per orario, preset di sistema + personali, export/import JSON, ripristino completo |
+| Command Center | ricerca istantanea su tutti i moduli, punteggio, filtri, cronologia persistita, apertura della sezione corretta, password escluse per default |
+| Finanze | entrate persistenti, saldo, budget per categoria con sforamento, serie a 6 mesi, abbonamenti mensili/annuali, CSV completo |
+
+La scheda **Finanze** è nuova; il vecchio tool **Spese** resta invariato per chi lo usa dalla sezione Strumenti. Nessun dato dimostrativo: le schermate vuote mostrano messaggi di stato, non numeri finti.
 
 ## Configurazione Gradle
 

@@ -1,17 +1,25 @@
 package com.lifeos.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.lifeos.data.Accent
 import com.lifeos.data.ThemeMode
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.lifeos.data.blendColors
+import com.lifeos.data.isNightTime
+import com.lifeos.data.readableOn
+import com.lifeos.data.resolvePalette
+import java.util.Calendar
 
 val LocalAnimationsEnabled = staticCompositionLocalOf { true }
 val LocalCompactLayout = staticCompositionLocalOf { false }
@@ -74,32 +82,49 @@ private val lightBase = lightColorScheme(
     inversePrimary = LightPrimaryVariant
 )
 
-/** Accent pair: primary for dark surfaces, primary for light surfaces. */
-private fun accentPair(accent: Accent): Pair<Color, Color> = when (accent) {
-    Accent.BLUE -> Color(0xFF2F8AF0) to Color(0xFF1C6DD0)
-    Accent.GREEN -> Color(0xFF4F9E6B) to Color(0xFF2E7D4F)
-    Accent.PURPLE -> Color(0xFF9B7EDE) to Color(0xFF6C4AB6)
-    Accent.ORANGE -> Color(0xFFD97757) to Color(0xFFB55A3F)
-    Accent.TEAL -> Color(0xFF4DB6AC) to Color(0xFF00695C)
+/**
+ * Colour scheme with the accent, custom colours and readable foregrounds.
+ * Containers are blended from the primary so a custom HEX never breaks them.
+ */
+fun colorSchemeFor(
+    dark: Boolean,
+    accent: Accent,
+    customPrimary: Long? = null,
+    customSecondary: Long? = null,
+    customBackground: Long? = null,
+    customSurface: Long? = null
+) = run {
+    val palette = resolvePalette(dark, accent, customPrimary, customSecondary, customBackground, customSurface)
+    val primaryContainer = blendColors(palette.primary, palette.background, if (dark) 0.28f else 0.16f)
+    val secondaryContainer = blendColors(palette.secondary, palette.background, if (dark) 0.30f else 0.16f)
+    (if (dark) darkBase else lightBase).copy(
+        primary = Color(palette.primary),
+        onPrimary = Color(readableOn(palette.primary)),
+        primaryContainer = Color(primaryContainer),
+        onPrimaryContainer = Color(readableOn(primaryContainer)),
+        secondary = Color(palette.secondary),
+        onSecondary = Color(readableOn(palette.secondary)),
+        secondaryContainer = Color(secondaryContainer),
+        onSecondaryContainer = Color(readableOn(secondaryContainer)),
+        background = Color(palette.background),
+        onBackground = Color(palette.onBackground),
+        surface = Color(palette.surface),
+        onSurface = Color(palette.onSurface),
+        surfaceVariant = Color(palette.surfaceVariant),
+        onSurfaceVariant = Color(palette.onSurfaceVariant),
+        inversePrimary = Color(palette.primary)
+    )
 }
 
-fun colorSchemeFor(dark: Boolean, accent: Accent) = run {
-    val (darkAccent, lightAccent) = accentPair(accent)
-    if (dark) {
-        darkBase.copy(
-            primary = darkAccent,
-            primaryContainer = darkAccent.copy(alpha = 0.28f),
-            onPrimaryContainer = Color.White,
-            inversePrimary = darkAccent
-        )
-    } else {
-        lightBase.copy(
-            primary = lightAccent,
-            primaryContainer = lightAccent.copy(alpha = 0.14f),
-            onPrimaryContainer = lightAccent,
-            inversePrimary = lightAccent
-        )
-    }
+fun lifeOSShapes(cornerRadiusDp: Int): Shapes {
+    val radius = cornerRadiusDp.coerceIn(0, 32).dp
+    return Shapes(
+        extraSmall = RoundedCornerShape(radius * 0.35f),
+        small = RoundedCornerShape(radius * 0.6f),
+        medium = RoundedCornerShape(radius),
+        large = RoundedCornerShape(radius * 1.35f),
+        extraLarge = RoundedCornerShape(radius * 1.7f)
+    )
 }
 
 @Composable
@@ -109,6 +134,11 @@ fun LifeOSTheme(
     animationsEnabled: Boolean = true,
     compactLayout: Boolean = false,
     fontScale: Float = 1f,
+    customPrimary: Long? = null,
+    customSecondary: Long? = null,
+    customBackground: Long? = null,
+    customSurface: Long? = null,
+    cornerRadiusDp: Int = 16,
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
@@ -116,10 +146,13 @@ fun LifeOSTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
+        // Evaluated on recomposition, so it follows the clock when the app is opened.
+        ThemeMode.AUTO_TIME -> isNightTime(Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
     }
     MaterialTheme(
-        colorScheme = colorSchemeFor(dark, accent),
-        typography = Typography
+        colorScheme = colorSchemeFor(dark, accent, customPrimary, customSecondary, customBackground, customSurface),
+        typography = Typography,
+        shapes = lifeOSShapes(cornerRadiusDp)
     ) {
         CompositionLocalProvider(
             LocalAnimationsEnabled provides animationsEnabled,

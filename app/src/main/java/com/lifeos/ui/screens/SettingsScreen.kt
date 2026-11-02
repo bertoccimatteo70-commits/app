@@ -21,17 +21,21 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -56,10 +60,17 @@ import com.lifeos.ui.LifeOSViewModel
 import com.lifeos.ui.components.SectionHeader
 
 @Composable
-fun SettingsScreen(viewModel: LifeOSViewModel) {
+fun SettingsScreen(
+    viewModel: LifeOSViewModel,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {}
+) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val settings = state.settings
+    val needle = query.trim().lowercase()
+    fun matches(vararg words: String): Boolean =
+        needle.isEmpty() || words.any { it.lowercase().contains(needle) }
     var message by remember { mutableStateOf<String?>(null) }
 
     val notificationPermission = rememberLauncherForActivityResult(
@@ -99,77 +110,42 @@ fun SettingsScreen(viewModel: LifeOSViewModel) {
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        item { SectionHeader("Aspetto") }
         item {
-            SettingsCard {
-                Text("Tema", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ThemeMode.entries.forEach { mode ->
-                        FilterChip(
-                            selected = settings.themeMode == mode,
-                            onClick = { viewModel.setThemeMode(mode) },
-                            label = {
-                                Text(
-                                    when (mode) {
-                                        ThemeMode.SYSTEM -> "Sistema"
-                                        ThemeMode.LIGHT -> "Chiaro"
-                                        ThemeMode.DARK -> "Scuro"
-                                    },
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Colore principale", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Accent.entries.forEach { accent ->
-                        val color = accentColor(accent)
-                        Surface(
-                            color = color,
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .selectable(
-                                    selected = settings.accent == accent,
-                                    role = Role.RadioButton,
-                                    onClick = { viewModel.setAccent(accent) }
-                                )
-                        ) {
-                            if (settings.accent == accent) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.padding(6.dp)
-                                )
-                            }
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                label = { Text("Cerca nelle impostazioni") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancella ricerca")
                         }
                     }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                SwitchRow(
-                    title = "Animazioni",
-                    subtitle = "Transizioni e animazioni dei componenti",
-                    checked = settings.animationsEnabled,
-                    onCheckedChange = viewModel::setAnimationsEnabled
-                )
-                SwitchRow(
-                    title = "Layout compatto",
-                    subtitle = "Riduce spaziature e dimensioni",
-                    checked = settings.compactLayout,
-                    onCheckedChange = viewModel::setCompactLayout
-                )
-            }
+                },
+                singleLine = true
+            )
         }
 
-        item { SectionHeader("Sicurezza e privacy") }
-        item { SecuritySettingsCard(viewModel) }
+        if (matches("aspetto", "tema", "colore", "sfondo", "angoli", "testo", "animazioni", "layout")) {
+            item { SectionHeader("Aspetto") }
+            item { ThemeStudioCard(viewModel) }
+        }
 
-        item { SectionHeader("Launcher e schermo") }
-        item { LauncherSettingsCard(viewModel) }
+        if (matches("sicurezza", "privacy", "pin", "biometria", "timeout", "screenshot", "blocco")) {
+            item { SectionHeader("Sicurezza e privacy") }
+            item { SecuritySettingsCard(viewModel) }
+        }
 
+        if (matches("launcher", "griglia", "dock", "icone", "gesture", "nascoste", "schermo", "orientamento", "immersiva")) {
+            item { SectionHeader("Launcher e schermo") }
+            item { LauncherSettingsCard(viewModel) }
+        }
+
+        if (matches("notifiche", "promemoria", "sveglie", "ricorrenti", "archivia", "automazioni")) {
         item { SectionHeader("Notifiche e automazioni") }
         item {
             SettingsCard {
@@ -224,6 +200,9 @@ fun SettingsScreen(viewModel: LifeOSViewModel) {
             }
         }
 
+        }
+
+        if (matches("backup", "dati", "privacy", "esporta", "importa", "ripristino")) {
         item { SectionHeader("Dati e privacy") }
         item {
             SettingsCard {
@@ -274,6 +253,9 @@ fun SettingsScreen(viewModel: LifeOSViewModel) {
             }
         }
 
+        }
+
+        if (matches("sistema", "home", "permessi", "versione", "info", "android")) {
         item { SectionHeader("Sistema") }
         item {
             SettingsCard {
@@ -315,11 +297,23 @@ fun SettingsScreen(viewModel: LifeOSViewModel) {
                     )
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
-                        text = "LifeOS 2.1 · Android 8+ · Kotlin + Compose Material 3",
+                        text = "LifeOS 3.0 · Android 8+ · Kotlin + Compose Material 3",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+        }
+
+        if (needle.isNotEmpty()) {
+            item {
+                Text(
+                    text = "La ricerca filtra le sezioni delle impostazioni. Cancella il testo per vedere tutto.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
         }
 

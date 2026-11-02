@@ -113,7 +113,12 @@ class MainActivity : FragmentActivity() {
                 accent = settings.accent,
                 animationsEnabled = settings.animationsEnabled,
                 compactLayout = settings.compactLayout,
-                fontScale = settings.fontScale
+                fontScale = settings.fontScale,
+                customPrimary = settings.customPrimary,
+                customSecondary = settings.customSecondary,
+                customBackground = settings.customBackground,
+                customSurface = settings.customSurface,
+                cornerRadiusDp = settings.cornerRadiusDp
             ) {
                 if (settings.pinHash.isNotEmpty() && !unlocked) {
                     LockScreen(

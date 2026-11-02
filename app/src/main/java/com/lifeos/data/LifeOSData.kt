@@ -28,7 +28,7 @@ const val DEFAULT_DUE_WINDOW_MS: Long = 7L * 24 * 60 * 60 * 1000
 fun defaultDueDateMillis(now: Long = System.currentTimeMillis()): Long = now + DEFAULT_DUE_WINDOW_MS
 
 @Serializable
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
+enum class ThemeMode { SYSTEM, LIGHT, DARK, AUTO_TIME }
 
 @Serializable
 enum class Accent { BLUE, GREEN, PURPLE, ORANGE, TEAL }
@@ -53,6 +53,14 @@ data class UserSettings(
     val animationsEnabled: Boolean = true,
     val compactLayout: Boolean = false,
     val fontScale: Float = 1f,
+    // --- tema avanzato (null = derivato dall'accento) ---
+    val customPrimary: Long? = null,
+    val customSecondary: Long? = null,
+    val customBackground: Long? = null,
+    val customSurface: Long? = null,
+    val cornerRadiusDp: Int = 16,
+    val themePresets: List<ThemePreset> = emptyList(),
+    val searchHistory: List<String> = emptyList(),
     val notificationsEnabled: Boolean = true,
     val autoRollover: Boolean = true,
     val archiveCompleted: Boolean = false,
@@ -127,6 +135,8 @@ data class LifeOSState(
     val vault: List<PasswordEntry> = emptyList(),
     val habits: List<Habit> = emptyList(),
     val shopping: List<ShoppingItem> = emptyList(),
+    val incomes: List<Income> = emptyList(),
+    val categoryBudgets: List<CategoryBudget> = emptyList(),
     val settings: UserSettings = UserSettings()
 )
 

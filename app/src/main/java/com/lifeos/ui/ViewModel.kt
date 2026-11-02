@@ -31,6 +31,24 @@ import com.lifeos.data.Document
 import com.lifeos.data.DocumentStorage
 import com.lifeos.data.HomeBackground
 import com.lifeos.data.PasswordEntry
+import com.lifeos.data.SearchHit
+import com.lifeos.data.ThemeColorSlot
+import com.lifeos.data.ThemePreset
+import com.lifeos.data.addingIncome
+import com.lifeos.data.captureThemePreset
+import com.lifeos.data.defaultThemePresets
+import com.lifeos.data.exportThemePresets
+import com.lifeos.data.financeCsv
+import com.lifeos.data.importThemePresets
+import com.lifeos.data.removingCategoryBudget
+import com.lifeos.data.removingIncome
+import com.lifeos.data.searchAll
+import com.lifeos.data.settingCategoryBudget
+import com.lifeos.data.withColor
+import com.lifeos.data.withPreset
+import com.lifeos.data.withSearchQuery
+import com.lifeos.data.withThemePreset
+import com.lifeos.data.withoutPreset
 import com.lifeos.data.addingDocument
 import com.lifeos.data.addingExpense
 import com.lifeos.data.addingHabit
@@ -493,6 +511,80 @@ class LifeOSViewModel(context: Context) : ViewModel() {
         vaultCrypto.deleteKey()
         commit { it.copy(vault = emptyList()).logSecurityEvent(SecurityEventKind.VAULT_WIPED) }
     }
+
+    // -------------------------------------------------------------- finanza
+
+    fun addIncome(label: String, amountCents: Long, category: String) =
+        commit { it.addingIncome(label, amountCents, category) }
+
+    fun removeIncome(id: String) = commit { it.removingIncome(id) }
+    fun setCategoryBudget(category: String, cents: Long) = commit {
+        it.settingCategoryBudget(category, cents)
+    }
+
+    fun removeCategoryBudget(category: String) = commit { it.removingCategoryBudget(category) }
+
+    /** CSV of every income and expense, ready to be written by the SAF picker. */
+    fun exportFinanceCsv(): String = _state.value.financeCsv()
+
+    // ---------------------------------------------------------- tema e ricerca
+
+    fun setCustomColor(slot: ThemeColorSlot, argb: Long?) =
+        updateSettings { it.withColor(slot, argb) }
+
+    fun setCornerRadius(dp: Int) = updateSettings { it.copy(cornerRadiusDp = dp.coerceIn(0, 32)) }
+
+    /** Saves the current look; returns the preset so the UI can show its name. */
+    fun saveThemePreset(name: String): ThemePreset {
+        val preset = captureThemePreset(_state.value.settings, name)
+        updateSettings { it.copy(themePresets = it.themePresets.withThemePreset(preset)) }
+        return preset
+    }
+
+    fun applyThemePreset(id: String) {
+        val preset = (_state.value.settings.themePresets + defaultThemePresets())
+            .firstOrNull { it.id == id } ?: return
+        updateSettings { it.withPreset(preset) }
+    }
+
+    fun deleteThemePreset(id: String) =
+        updateSettings { it.copy(themePresets = it.themePresets.withoutPreset(id)) }
+
+    fun exportThemes(): String = exportThemePresets(_state.value.settings.themePresets)
+
+    fun importThemes(raw: String): Result<Int> = importThemePresets(raw).map { imported ->
+        updateSettings { settings ->
+            settings.copy(themePresets = imported.fold(settings.themePresets) { acc, preset ->
+                acc.withThemePreset(preset)
+            })
+        }
+        imported.size
+    }
+
+    /** Back to the stock look: mode, accent, colours, corners, text and motion. */
+    fun resetTheme() = updateSettings {
+        it.copy(
+            themeMode = ThemeMode.SYSTEM,
+            accent = Accent.BLUE,
+            customPrimary = null,
+            customSecondary = null,
+            customBackground = null,
+            customSurface = null,
+            cornerRadiusDp = 16,
+            fontScale = 1f,
+            compactLayout = false,
+            animationsEnabled = true
+        )
+    }
+
+    fun search(query: String, includeSecrets: Boolean = false): List<SearchHit> =
+        searchAll(_state.value, query, includeSecrets = includeSecrets)
+
+    fun rememberSearch(query: String) = updateSettings {
+        it.copy(searchHistory = it.searchHistory.withSearchQuery(query))
+    }
+
+    fun clearSearchHistory() = updateSettings { it.copy(searchHistory = emptyList()) }
 
     // ------------------------------------------------------------ impostazioni
 

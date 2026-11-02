@@ -69,8 +69,10 @@ private val tools = listOf(
 )
 
 @Composable
-fun ToolsScreen(viewModel: LifeOSViewModel) {
-    var tab by remember { mutableStateOf(0) }
+fun ToolsScreen(viewModel: LifeOSViewModel, initialTab: Int = 0) {
+    var tab by remember { mutableStateOf(initialTab) }
+
+    LaunchedEffect(initialTab) { tab = initialTab }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
