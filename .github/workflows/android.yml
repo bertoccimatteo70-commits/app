@@ -87,6 +87,29 @@ jobs:
           sdkmanager --licenses < "$RUNNER_TEMP/android-sdk-licenses.txt" > /dev/null
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
+      # The release keystore is never committed. It is restored here from
+      # repository secrets so the CI artifact is signed with the real key.
+      - name: Configure release signing
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            mkdir -p keystore
+            printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 -d > keystore/lifeos-release.jks
+            {
+              echo "storeFile=keystore/lifeos-release.jks"
+              echo "storePassword=$RELEASE_STORE_PASSWORD"
+              echo "keyAlias=$RELEASE_KEY_ALIAS"
+              echo "keyPassword=$RELEASE_KEY_PASSWORD"
+            } > keystore.properties
+            echo "Release keystore restored from secrets."
+          else
+            echo "::warning::RELEASE_KEYSTORE_BASE64 is not configured: the release APK will be unsigned."
+          fi
+
       - name: Build debug APK
         run: |
           chmod +x gradlew
@@ -97,6 +120,16 @@ jobs:
         run: |
           rm -f app/build/outputs/apk/release/*.apk
           ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Verify release signature
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          echo "Checking $APK"
+          if [ -f keystore.properties ]; then
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+          else
+            echo "::warning::Release APK is unsigned: add the RELEASE_* secrets to sign it in CI."
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

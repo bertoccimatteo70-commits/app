@@ -8,3 +8,12 @@ local.properties
 *.iml
 *.hprof
 captures/
+
+# Signing material must never be committed.
+keystore/
+keystore.properties
+*.jks
+*.keystore
+
+# Build outputs copied for sharing.
+artifacts/

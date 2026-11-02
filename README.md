@@ -48,7 +48,7 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - **Sveglie**: mostrano una notifica, non una schermata a tutto schermo con suoneria prolungata.
 - **Sveglie esatte**: dipendono dal permesso `SCHEDULE_EXACT_ALARM`; se negato si usano sveglie non esatte.
 - **Backup cifrato su altro dispositivo**: i segreti del gestore password restano cifrati con la chiave del dispositivo di origine, quindi su un telefono nuovo vanno reinseriti; note, documenti e resto dello stato si ripristinano normalmente.
-- **APK di release in CI**: firmato con la chiave di debug perché nel repository non esiste un keystore; per distribuire serve una firma di release reale.
+- **APK di release in CI**: viene firmato solo se i quattro secret `RELEASE_*` sono configurati sul repository; senza di essi il job produce un APK non firmato e lo segnala con un warning, invece di ripiegare sulla chiave di debug.
 
 ## Test
 
@@ -87,6 +87,57 @@ Gli APK vengono generati in:
 - `app/build/outputs/apk/debug/app-debug.apk`
 - `app/build/outputs/apk/release/app-release.apk`
 
+## Firma di release
+
+La chiave di firma **non è nel repository**: `.gitignore` esclude `keystore/`,
+`keystore.properties` e ogni `*.jks`. In locale Gradle legge
+`keystore.properties` nella radice del progetto:
+
+```properties
+storeFile=keystore/lifeos-release.jks
+storePassword=...
+keyAlias=lifeos
+keyPassword=...
+```
+
+Se il file esiste, `:app:assembleRelease` produce `app-release.apk` firmato con
+la chiave di release; se manca, l'APK esce **non firmato** (nessun fallback
+silenzioso alla chiave di debug).
+
+Certificato attuale:
+
+```
+CN=LifeOS, OU=Mobile, O=LifeOS, L=Roma, ST=Italia, C=IT
+SHA-256: a4f0b90324ca1e48d6e0f6ab20ce30d39d7bf1a63ef9f7142670e0139f5ddcba
+SHA-1:   c52c1e9df2e0fba1afb90cc4aeab2b90a80afe59
+RSA 4096, SHA384withRSA, validità fino al 2054
+```
+
+Verifica della firma:
+
+```
+$ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+```
+
+**Backup obbligatorio**: senza `keystore/lifeos-release.jks` e la sua password
+non sarà più possibile aggiornare l'app installata, perché Android rifiuta un
+APK con una firma diversa. Conserva entrambi in un posto sicuro.
+
+### Firma in CI
+
+Carica i quattro secret in GitHub → Settings → Secrets and variables → Actions:
+
+| Secret | Valore |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | `base64 -w0 keystore/lifeos-release.jks` |
+| `RELEASE_STORE_PASSWORD` | password dello store |
+| `RELEASE_KEY_ALIAS` | `lifeos` |
+| `RELEASE_KEY_PASSWORD` | password della chiave |
+
+Il workflow ricostruisce il keystore solo su runner, verifica la firma con
+`apksigner` e poi elimina i file temporanei insieme al runner. Senza questi
+secret l'APK di release viene caricato non firmato, con un warning nel log.
+
 ## GitHub Actions
 
 Il workflow `.github/workflows/android.yml`, su push alle branch `main` o
@@ -94,7 +145,8 @@ Il workflow `.github/workflows/android.yml`, su push alle branch `main` o
 
 1. esegue i test unitari e pubblica `LifeOS-unit-test-results`;
 2. compila l'APK di debug (`LifeOS-debug-apk`) e l'APK di release
-   (`LifeOS-release-apk`).
+   (`LifeOS-release-apk`), firmandolo con la chiave reale quando i secret sono
+   presenti.
 
 ## Permessi
 
