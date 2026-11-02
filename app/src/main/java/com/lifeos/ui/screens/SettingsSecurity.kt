@@ -44,7 +44,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.lifeos.data.HomeBackground
 import com.lifeos.security.BiometricUnlock
 import com.lifeos.ui.LifeOSViewModel
 
@@ -275,94 +274,6 @@ fun SecuritySettingsCard(viewModel: LifeOSViewModel) {
             }
         )
         SecurityDialog.NONE -> Unit
-    }
-}
-
-@Composable
-fun LauncherSettingsCard(viewModel: LifeOSViewModel) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val settings = state.settings
-    PreferenceCard {
-        Text("Griglia e icone", style = MaterialTheme.typography.labelMedium)
-        Text(
-            "Colonne: ${settings.launcherColumns} · Icone: ${settings.launcherIconSizeDp} dp · Spaziatura: ${settings.launcherSpacingDp} dp",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Slider(
-            value = settings.launcherColumns.toFloat(),
-            onValueChange = { viewModel.setLauncherColumns(it.toInt()) },
-            valueRange = 3f..6f,
-            steps = 2
-        )
-        Slider(
-            value = settings.launcherIconSizeDp.toFloat(),
-            onValueChange = { viewModel.setLauncherIconSize(it.toInt()) },
-            valueRange = 40f..80f,
-            steps = 7
-        )
-        Slider(
-            value = settings.launcherSpacingDp.toFloat(),
-            onValueChange = { viewModel.setLauncherSpacing(it.toInt()) },
-            valueRange = 0f..24f,
-            steps = 11
-        )
-        Text(
-            "Dimensione del testo: ${(settings.fontScale * 100).toInt()}%",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Slider(
-            value = settings.fontScale,
-            onValueChange = { viewModel.setFontScale(it) },
-            valueRange = 0.8f..1.4f,
-            steps = 5
-        )
-        ToggleRow(
-            title = "Nomi delle app",
-            subtitle = "Mostra le etichette sotto le icone",
-            checked = settings.showAppLabels,
-            onCheckedChange = viewModel::setShowAppLabels
-        )
-        ToggleRow(
-            title = "App drawer a elenco",
-            subtitle = "Elenco compatto invece della griglia",
-            checked = settings.drawerAsList,
-            onCheckedChange = viewModel::setDrawerAsList
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text("Sfondo Home", style = MaterialTheme.typography.labelMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            HomeBackground.entries.forEach { background ->
-                FilterChip(
-                    selected = settings.homeBackground == background,
-                    onClick = { viewModel.setHomeBackground(background) },
-                    label = {
-                        Text(
-                            when (background) {
-                                HomeBackground.SURFACE -> "Neutro"
-                                HomeBackground.GRADIENT -> "Gradiente"
-                                HomeBackground.DARK -> "Scuro"
-                            },
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        ToggleRow(
-            title = "Modalità immersiva",
-            subtitle = "Nasconde le barre di sistema finché l'app è aperta",
-            checked = settings.immersiveMode,
-            onCheckedChange = viewModel::setImmersiveMode
-        )
-        ToggleRow(
-            title = "Blocca orientamento",
-            subtitle = "Mantiene l'orientamento attuale invece di ruotare",
-            checked = settings.lockOrientation,
-            onCheckedChange = viewModel::setLockOrientation
-        )
     }
 }
 

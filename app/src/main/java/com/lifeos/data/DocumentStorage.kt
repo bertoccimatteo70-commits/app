@@ -60,10 +60,27 @@ class DocumentStorage(private val context: Context) {
         return Intent.createChooser(send, "Condividi documento").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
+    /** Copies a launcher background image into private storage. */
+    fun copyBackground(uri: Uri): String? = runCatching {
+        val target = File(context.filesDir, "backgrounds").apply { mkdirs() }
+            .let { dir -> File(dir, "home-${System.currentTimeMillis()}.jpg") }
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        } ?: return null
+        target.parentFile?.listFiles()?.filter { it != target }?.forEach { it.delete() }
+        target.absolutePath
+    }.getOrNull()
+
+    /** Deletes every stored document attachment but keeps launcher icons. */
+    fun clearDocuments() {
+        runCatching { documentsDir.listFiles()?.forEach { it.delete() } }
+    }
+
     /** Deletes every stored attachment and custom icon, used by the reset. */
     fun clearAll() {
-        runCatching { documentsDir.listFiles()?.forEach { it.delete() } }
+        clearDocuments()
         runCatching { File(context.filesDir, "icons").listFiles()?.forEach { it.delete() } }
+        runCatching { File(context.filesDir, "backgrounds").listFiles()?.forEach { it.delete() } }
     }
 
     private fun displayName(uri: Uri): String? = runCatching {

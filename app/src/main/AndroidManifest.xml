@@ -8,6 +8,8 @@
     <!-- Declared so LifeOS can host Android widgets when it is the home app. -->
     <uses-permission android:name="android.permission.BIND_APPWIDGET" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Used only by the optional "swipe down for notifications" gesture. -->
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <!-- Photos are captured through the system camera app, so no CAMERA
          permission is requested by LifeOS itself. -->
 
@@ -21,6 +23,22 @@
         </intent>
         <intent>
             <action android:name="android.appwidget.action.APPWIDGET_BIND" />
+        </intent>
+        <!-- Icon packs: LifeOS resolves their appfilter.xml mapping. -->
+        <intent>
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.gau.go.launcherex.theme" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.anddoes.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.teslacoilsw.launcher.THEME" />
         </intent>
     </queries>
 
@@ -48,6 +66,18 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".security.LifeOSDeviceAdmin"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".notifications.ReminderReceiver"

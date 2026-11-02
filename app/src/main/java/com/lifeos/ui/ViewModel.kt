@@ -7,6 +7,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeos.data.Accent
 import com.lifeos.data.Alarm
+import com.lifeos.data.AppFolder
+import com.lifeos.data.LauncherSort
+import com.lifeos.data.SecurityEventKind
+import com.lifeos.data.addingAppToFolder
+import com.lifeos.data.addingAppToPage
+import com.lifeos.data.addingFolder
+import com.lifeos.data.addingHomePage
+import com.lifeos.data.hidingApp
+import com.lifeos.data.logSecurityEvent
+import com.lifeos.data.movingAppInCustomOrder
+import com.lifeos.data.movingHomePage
+import com.lifeos.data.registerFailedUnlock
+import com.lifeos.data.registerSuccessfulUnlock
+import com.lifeos.data.removingAppFromFolder
+import com.lifeos.data.removingFolder
+import com.lifeos.data.removingHomeEntry
+import com.lifeos.data.removingHomePage
+import com.lifeos.data.settingLauncherSort
+import com.lifeos.data.togglingHiddenApp
+import com.lifeos.data.updatingFolder
 import com.lifeos.data.Document
 import com.lifeos.data.DocumentStorage
 import com.lifeos.data.HomeBackground
@@ -196,7 +216,10 @@ class LifeOSViewModel(context: Context) : ViewModel() {
 
     // -------------------------------------------------------------- backup
 
-    fun exportBackup(): String = Backup.export(_state.value)
+    fun exportBackup(): String {
+        commit { it.logSecurityEvent(SecurityEventKind.BACKUP_EXPORTED) }
+        return Backup.export(_state.value)
+    }
 
     /** Password protected backup (PBKDF2 + AES-GCM), safe to store in the cloud. */
     fun exportEncryptedBackup(password: String): Result<String> =
@@ -209,6 +232,7 @@ class LifeOSViewModel(context: Context) : ViewModel() {
 
     fun importBackup(raw: String): Result<Unit> {
         val restored = Backup.import(raw).getOrElse { return Result.failure(it) }
+            .logSecurityEvent(SecurityEventKind.BACKUP_IMPORTED)
         applyRestored(restored)
         return Result.success(Unit)
     }
@@ -228,8 +252,9 @@ class LifeOSViewModel(context: Context) : ViewModel() {
         current.alarms.forEach { ReminderScheduler.cancelAlarm(appContext, it.id) }
         documentStorage.clearAll()
         vaultCrypto.deleteKey()
-        _state.value = LifeOSState()
-        viewModelScope.launch { LifeOSStorage.replace(appContext, LifeOSState()) }
+        val wiped = LifeOSState().logSecurityEvent(SecurityEventKind.DATA_WIPED)
+        _state.value = wiped
+        viewModelScope.launch { LifeOSStorage.replace(appContext, wiped) }
     }
 
     // ------------------------------------------------------------ documenti
@@ -354,11 +379,21 @@ class LifeOSViewModel(context: Context) : ViewModel() {
         if (pin.length < 4) return false
         val salt = PinHasher.newSalt()
         val hash = PinHasher.hash(pin, salt)
-        updateSettings { it.copy(pinHash = hash, pinSalt = salt) }
+        updateSettings {
+            it.copy(
+                pinHash = hash,
+                pinSalt = salt,
+                securityEvents = it.securityEvents
+            )
+        }
+        recordSecurityEvent(SecurityEventKind.PIN_SET)
         return true
     }
 
-    fun removePin() = updateSettings { it.copy(pinHash = "", pinSalt = "", biometricEnabled = false) }
+    fun removePin() {
+        updateSettings { it.copy(pinHash = "", pinSalt = "", biometricEnabled = false) }
+        recordSecurityEvent(SecurityEventKind.PIN_REMOVED)
+    }
 
     fun verifyPin(pin: String): Boolean {
         val settings = _state.value.settings
@@ -379,14 +414,85 @@ class LifeOSViewModel(context: Context) : ViewModel() {
     /** Copies the picked image into private storage and returns its path. */
     fun pickAppIcon(packageName: String, uri: Uri): String? = documentStorage.copyIcon(uri, packageName)
 
-    fun setLauncherColumns(columns: Int) = updateSettings { it.copy(launcherColumns = columns.coerceIn(3, 6)) }
+    fun setLauncherColumns(columns: Int) = updateSettings { it.copy(launcherColumns = columns.coerceIn(3, 8)) }
+    fun setLauncherRows(rows: Int) = updateSettings { it.copy(launcherRows = rows.coerceIn(3, 8)) }
     fun setLauncherIconSize(sizeDp: Int) = updateSettings { it.copy(launcherIconSizeDp = sizeDp.coerceIn(40, 80)) }
     fun setLauncherSpacing(spacingDp: Int) = updateSettings { it.copy(launcherSpacingDp = spacingDp.coerceIn(0, 24)) }
+    fun setLauncherDockSize(size: Int) = updateSettings { it.copy(launcherDockSize = size.coerceIn(0, 7)) }
+    fun setLauncherSort(sort: LauncherSort) = commit { it.settingLauncherSort(sort) }
+    fun setIconPack(packageName: String?) = updateSettings { it.copy(launcherIconPack = packageName) }
+    fun moveAppInCustomOrder(packageName: String, offset: Int) = commit {
+        it.movingAppInCustomOrder(packageName, offset)
+    }
     fun setShowAppLabels(show: Boolean) = updateSettings { it.copy(showAppLabels = show) }
     fun setDrawerAsList(asList: Boolean) = updateSettings { it.copy(drawerAsList = asList) }
     fun setImmersiveMode(immersive: Boolean) = updateSettings { it.copy(immersiveMode = immersive) }
     fun setLockOrientation(lock: Boolean) = updateSettings { it.copy(lockOrientation = lock) }
     fun setHomeBackground(background: HomeBackground) = updateSettings { it.copy(homeBackground = background) }
+    fun setHomeBackgroundImage(path: String?) = updateSettings { it.copy(homeBackgroundImage = path) }
+    fun pickHomeBackground(uri: Uri): String? = documentStorage.copyBackground(uri)
+
+    fun hideApp(packageName: String, hidden: Boolean) = commit { it.hidingApp(packageName, hidden) }
+    fun toggleHiddenApp(packageName: String) = commit { it.togglingHiddenApp(packageName) }
+    fun setRevealHiddenApps(reveal: Boolean) = updateSettings { it.copy(revealHiddenApps = reveal) }
+    fun setSwipeUpDrawer(enabled: Boolean) = updateSettings { it.copy(swipeUpOpensDrawer = enabled) }
+    fun setSwipeDownNotifications(enabled: Boolean) = updateSettings { it.copy(swipeDownShowsNotifications = enabled) }
+    fun setDoubleTapLock(enabled: Boolean) = updateSettings { it.copy(doubleTapLocksScreen = enabled) }
+
+    // ----------------------------------------------------- cartelle e pagine
+
+    /** Creates a folder and returns its id so the caller can keep editing it. */
+    fun createFolder(name: String, colorArgb: Long, packageName: String? = null): String {
+        val folder = AppFolder(
+            name = name,
+            colorArgb = colorArgb,
+            packages = listOfNotNull(packageName)
+        )
+        commit { it.addingFolder(folder) }
+        return folder.id
+    }
+
+    fun updateFolder(folder: AppFolder) = commit { it.updatingFolder(folder) }
+    fun addAppToFolder(folderId: String, packageName: String) = commit {
+        it.addingAppToFolder(folderId, packageName)
+    }
+    fun removeAppFromFolder(folderId: String, packageName: String) = commit {
+        it.removingAppFromFolder(folderId, packageName)
+    }
+    fun deleteFolder(folderId: String) = commit { it.removingFolder(folderId) }
+    fun addAppToHome(packageName: String, pageId: String? = null) = commit {
+        it.addingAppToPage(pageId, packageName)
+    }
+    fun removeHomeEntry(pageId: String, key: String) = commit { it.removingHomeEntry(pageId, key) }
+    fun addHomePage() = commit { it.addingHomePage("Home ${it.settings.homePages.size + 1}") }
+    fun removeHomePage(pageId: String) = commit { it.removingHomePage(pageId) }
+    fun moveHomePage(from: Int, to: Int) = commit { it.movingHomePage(from, to) }
+
+    // ------------------------------------------------------------- privacy
+
+    fun setScreenshotProtection(enabled: Boolean) = updateSettings {
+        it.copy(screenshotProtection = enabled)
+    }
+
+    fun recordSecurityEvent(kind: SecurityEventKind) = commit { it.logSecurityEvent(kind) }
+    fun registerUnlockFailure() = commit { it.registerFailedUnlock() }
+    fun registerUnlockSuccess() = commit { it.registerSuccessfulUnlock() }
+
+    /** Deletes documents and their attachments, leaving the rest untouched. */
+    fun clearDocuments() {
+        documentStorage.clearDocuments()
+        commit {
+            it.copy(documents = emptyList(), reminders = it.reminders.filterNot { reminder ->
+                it.documents.any { doc -> doc.reminderId == reminder.id }
+            }).logSecurityEvent(SecurityEventKind.DOCUMENTS_WIPED)
+        }
+    }
+
+    /** Deletes the password vault and its Keystore key. */
+    fun clearVault() {
+        vaultCrypto.deleteKey()
+        commit { it.copy(vault = emptyList()).logSecurityEvent(SecurityEventKind.VAULT_WIPED) }
+    }
 
     // ------------------------------------------------------------ impostazioni
 

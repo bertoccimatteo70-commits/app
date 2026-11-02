@@ -75,6 +75,25 @@ data class UserSettings(
     val appNameOverrides: Map<String, String> = emptyMap(),
     val appIconOverrides: Map<String, String> = emptyMap(),
     val homeBackground: HomeBackground = HomeBackground.SURFACE,
+    // --- launcher: griglia, dock, cartelle e pagine ---
+    val launcherRows: Int = 5,
+    val launcherDockSize: Int = 4,
+    val launcherHiddenApps: List<String> = emptyList(),
+    val launcherSort: LauncherSort = LauncherSort.NAME,
+    val launcherCustomOrder: List<String> = emptyList(),
+    val launcherFolders: List<AppFolder> = emptyList(),
+    val homePages: List<HomePage> = listOf(HomePage(id = "home-1")),
+    val launcherIconPack: String? = null,
+    val revealHiddenApps: Boolean = false,
+    val swipeUpOpensDrawer: Boolean = true,
+    val swipeDownShowsNotifications: Boolean = false,
+    val doubleTapLocksScreen: Boolean = false,
+    val homeBackgroundImage: String? = null,
+    // --- privacy ---
+    val screenshotProtection: Boolean = false,
+    val securityEvents: List<SecurityEvent> = emptyList(),
+    val failedUnlocks: Int = 0,
+    val lockedUntilMillis: Long = 0L,
     // --- spese ---
     val monthlyBudgetCents: Long = 0
 )

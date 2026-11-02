@@ -21,10 +21,11 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 | Lista della spesa | articoli con quantità, completamento, pulizia dei completati |
 | Password | gestore locale: ogni segreto è cifrato con AES-256-GCM e chiave non esportabile dell'Android Keystore |
 | Strumenti | calcolatrice con parser reale, convertitori (lunghezza, peso, volume, temperatura, dati), timer con notifica, cronometro con giri, sveglie |
-| Launcher | elenco app installate, ricerca, preferiti, avvio, widget Android, griglia 3-6 colonne, dimensione icone, spaziatura, etichette on/off, drawer a elenco, rinomina app e icona personalizzata per singola app |
+| Launcher | più pagine Home riordinabili, dock configurabile, griglia 3-8 colonne e 3-8 righe, dimensione icone e spaziatura, cartelle con nome/colore/icone, app nascoste con sezione dedicata, ordinamento A-Z/recenti/personalizzato, icon pack (appfilter), icone personalizzate da galleria, rinomina app, ricerca, drawer a elenco o griglia, widget Android, gesture (scorri su per il drawer, scorri giù per le notifiche, doppio tocco per bloccare lo schermo) |
 | Notifiche | canali, promemoria e sveglie con AlarmManager, rischedulazione al boot, permessi gestiti |
 | Backup | export/import JSON versionato; in più backup cifrato AES-256-GCM con password (PBKDF2), import che rischedula i promemoria |
-| Sicurezza | PIN con hash PBKDF2 e salt, blocco biometrico, timeout di blocco configurabile, cancellazione completa dei dati |
+| Sicurezza | PIN con hash PBKDF2 e salt, blocco biometrico, timeout di blocco configurabile, blocco temporaneo dopo 5 tentativi, registro locale eventi, blocco screenshot, recupero PIN tramite reset dichiarato, cancellazione selettiva (documenti, password, tutto) |
+| Privacy | centro privacy con stato reale dei permessi e scorciatoie alle impostazioni Android, informativa interna, registro eventi, elenco trasparente dei dati trattati |
 | Aspetto | tema sistema/chiaro/scuro, 5 accenti, animazioni on/off, layout compatto, scala del testo, sfondo Home, modalità immersiva, blocco orientamento |
 
 ## Sicurezza e privacy
@@ -34,16 +35,22 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - Il backup cifrato deriva la chiave dalla password scelta con PBKDF2 (100.000 iterazioni) e usa AES-256-GCM con IV casuale; un file manomesso o una password errata falliscono in decrittografia.
 - Gli allegati dei documenti sono copiati nella memoria privata dell'app; la condivisione avviene solo tramite URI FileProvider con permesso temporaneo.
 - Nessuna pubblicità, nessun tracciamento, nessun SDK di analytics. L'app non dichiara il permesso INTERNET: la modalità offline è strutturale.
-- L'informativa privacy completa è dentro l'app (Impostazioni → Sicurezza e privacy).
-- "Cancella tutto" elimina dati, allegati, icone personalizzate, promemoria programmati e la chiave di crittografia.
+- L'informativa privacy completa è dentro l'app (scheda Privacy e Impostazioni → Sicurezza e privacy).
+- "Cancella tutto" elimina dati, allegati, icone personalizzate, sfondi, promemoria programmati e la chiave di crittografia.
+- Il registro eventi è locale, limitato a 200 voci e contiene solo tipo di evento e data: mai PIN, password o contenuti.
+- Il blocco screenshot usa `FLAG_SECURE` quando l'opzione è attiva; non protegge da foto scattate con un altro dispositivo.
+- Il recupero del PIN è volutamente un reset completo: LifeOS non conserva il PIN né una copia leggibile dei dati, quindi non esiste un recupero che non distrugga i dati.
 
 ## Limiti noti (dichiarati, non nascosti)
 
-- **Icon pack di terze parti**: Android non espone un'API stabile per gli icon pack (i formati ADW/Nova sono convenzioni non supportate da Google Play). Al loro posto: icona personalizzata per singola app scelta dall'utente, che è l'unica soluzione affidabile su tutte le versioni.
+- **Icon pack di terze parti**: LifeOS legge gli icon pack che espongono `appfilter.xml` (ADW/Nova/Go e derivati). Gli altri temi non sono supportati e per le app senza mappatura restano le icone di sistema; non c'è modo di garantire copertura totale.
+- **Applicazioni protette e cartelle cifrate**: non implementate. Le app restano avviabili dal drawer e le cartelle sono solo visive; la cifratura è riservata a password e backup.
 - **OCR / scanner PDF**: non incluso. Servirebbe ML Kit (modello scaricato dalla rete, quindi in contrasto con l'offline richiesto). Alternativa implementata: foto del documento allegata al record e condivisibile. Il riconoscimento testo può essere aggiunto come opzione online separata.
 - **Cartella privata cifrata dei file**: gli allegati sono nella sandbox privata dell'app ma non cifrati singolarmente. Solo i segreti del gestore password sono cifrati con Keystore, perché richiedono lettura casuale. Cifratura dei file può essere aggiunta con lo stesso schema, con costo di decrittografia all'apertura.
 - **Gestione file / download**: non implementata. Su Android 11+ richiederebbe `MANAGE_EXTERNAL_STORAGE`, che Google Play limita a file manager dichiarati; alternativa concreta: browser via Storage Access Framework su cartella scelta dall'utente.
 - **Rubrica e contatti**: non implementata (avrebbe richiesto READ_CONTACTS e una UI dedicata).
+- **Automazioni locali**: non implementate. Android non consente di cambiare modalità notte o avviare azioni di sistema da un'app senza permessi speciali (WRITE_SECURE_SETTINGS / accessibilità): restano fuori per non chiedere permessi che promettono più di quanto possano fare.
+- **Ricerca globale, produttività avanzata e file manager**: non ancora implementati (fasi C-G della roadmap sotto).
 - **Widget Android**: l'hosting funziona solo se LifeOS è impostata come app Home; senza quel ruolo il sistema nega il binding e l'app lo spiega.
 - **Sveglie**: mostrano una notifica, non una schermata a tutto schermo con suoneria prolungata.
 - **Sveglie esatte**: dipendono dal permesso `SCHEDULE_EXACT_ALARM`; se negato si usano sveglie non esatte.
@@ -52,14 +59,29 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 
 ## Test
 
-`./gradlew :app:testDebugUnitTest` esegue 65 test unitari:
+`./gradlew :app:testDebugUnitTest` esegue 82 test unitari:
 
 - modello dati, transizioni e backup (`LifeOSDataTests`, `UserInteractionsTests`, `WidgetModelTests`, `BackupTests`);
 - calcolatrice (`CalculatorTests`);
 - documenti, abbonamenti, spese, abitudini, spesa, override del launcher, formattazione importi, convertitori (`PersonalTests`);
+- launcher, cartelle, pagine, dock, ordinamenti, parser icon pack, lockout e registro eventi (`LauncherTests`);
 - PIN, backup cifrato e rilevamento manomissioni (`SecurityTests`).
 
 I test UI strumentali non sono inclusi: richiedono un emulatore, non disponibile nell'ambiente di build usato.
+
+## Stato delle fasi
+
+| Fase | Contenuto | Stato |
+| --- | --- | --- |
+| A | Launcher, icone, cartelle, pagine, dock, personalizzazione, modalità immersiva | **completata** (icon pack limitati ai temi con `appfilter.xml`) |
+| B | Privacy, sicurezza, crittografia, registro eventi, blocco screenshot, cancellazione selettiva | **completata** per le funzioni elencate; mancano blocco per-app e cifratura degli allegati |
+| C | Documenti, scanner, OCR e burocrazia | **non iniziata**: l'archivio documenti esistente resta disponibile, scanner/OCR richiedono una scelta esplicita sulla dipendenza (modello offline) |
+| D | File manager, strumenti e gestione quotidiana | **non iniziata** |
+| E | Sveglie, notifiche e automazioni | parziale: sveglie con AlarmManager e canali separati già presenti; mancano schermata full-screen, snooze e automazioni |
+| F | Dashboard, ricerca globale e produttività | **non iniziata** |
+| G | Accessibilità, backup, ottimizzazione e test finali | parziale: backup versionato e cifrato già presenti; audit accessibilità e test UI strumentali mancano |
+
+Le fasi non ancora iniziate non hanno pulsanti finti: semplicemente non sono presenti nell'interfaccia.
 
 ## Configurazione Gradle
 

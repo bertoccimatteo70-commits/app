@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Widgets
@@ -54,6 +55,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Documents("Documenti", Icons.Default.Folder),
     Goals("Obiettivi", Icons.Default.Flag),
     Dashboard("Dashboard", Icons.Default.Insights),
+    Privacy("Privacy", Icons.Default.PrivacyTip),
     Widgets("Widget", Icons.Default.Widgets),
     Tools("Strumenti", Icons.Default.Handyman),
     Settings("Impostazioni", Icons.Default.Settings)
@@ -155,6 +157,7 @@ fun LifeOSScreen(
                     Tab.Documents -> DocumentsScreen(viewModel = viewModel)
                     Tab.Goals -> GoalsScreen(viewModel = viewModel)
                     Tab.Dashboard -> DashboardScreen(viewModel = viewModel)
+                    Tab.Privacy -> PrivacyScreen(viewModel = viewModel)
                     Tab.Widgets -> WidgetScreen(viewModel = viewModel)
                     Tab.Tools -> ToolsScreen(viewModel = viewModel)
                     Tab.Settings -> SettingsScreen(viewModel = viewModel)

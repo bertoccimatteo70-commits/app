@@ -3,6 +3,7 @@ package com.lifeos
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.DisposableEffect
@@ -83,6 +84,19 @@ class MainActivity : FragmentActivity() {
                     WindowCompat.setDecorFitsSystemWindows(window, true)
                     controller.show(WindowInsetsCompat.Type.systemBars())
                 }
+            }
+
+            // Screenshot / screen-recording protection for the whole app.
+            DisposableEffect(settings.screenshotProtection) {
+                if (settings.screenshotProtection) {
+                    window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+                onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
             }
 
             DisposableEffect(settings.lockOrientation) {

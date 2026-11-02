@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.data.isLockedOut
+import com.lifeos.data.lockoutSecondsLeft
 import com.lifeos.security.BiometricUnlock
 import com.lifeos.ui.LifeOSViewModel
 import kotlinx.coroutines.delay
@@ -48,11 +52,21 @@ fun LockScreen(
     onUnlocked: () -> Unit
 ) {
     val context = LocalContext.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var attempts by remember { mutableStateOf(0) }
     var biometricAvailable by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var secondsLeft by remember { mutableStateOf(lockoutSecondsLeft(state.settings)) }
+    var showForgot by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.settings.lockedUntilMillis) {
+        while (true) {
+            secondsLeft = lockoutSecondsLeft(state.settings)
+            if (secondsLeft <= 0) break
+            delay(1_000)
+        }
+    }
 
     LaunchedEffect(Unit) {
         biometricAvailable = biometricEnabled && BiometricUnlock.isAvailable(context)
@@ -71,14 +85,23 @@ fun LockScreen(
 
     fun submit() {
         if (pin.length < 4 || busy) return
+        if (isLockedOut(state.settings)) {
+            error = "Troppi tentativi: riprova tra ${lockoutSecondsLeft(state.settings)} s"
+            return
+        }
         busy = true
         if (viewModel.verifyPin(pin)) {
+            viewModel.registerUnlockSuccess()
             onUnlocked()
         } else {
-            attempts++
-            error = "PIN errato ($attempts)"
+            viewModel.registerUnlockFailure()
             pin = ""
             busy = false
+            error = if (state.settings.failedUnlocks + 1 >= com.lifeos.data.MAX_UNLOCK_ATTEMPTS) {
+                "Troppi tentativi: bloccata per un minuto"
+            } else {
+                "PIN errato (${state.settings.failedUnlocks + 1})"
+            }
         }
     }
 
@@ -121,7 +144,8 @@ fun LockScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = error ?: " ",
+                text = if (secondsLeft > 0) "Troppi tentativi: riprova tra $secondsLeft s"
+                else error ?: " ",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 textAlign = TextAlign.Center
@@ -139,6 +163,8 @@ fun LockScreen(
                 onConfirm = { submit() },
                 canConfirm = pin.length >= 4
             )
+
+            TextButton(onClick = { showForgot = true }) { Text("PIN dimenticato?") }
 
             if (biometricAvailable) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -158,6 +184,29 @@ fun LockScreen(
                 }
             }
         }
+    }
+
+    if (showForgot) {
+        AlertDialog(
+            onDismissRequest = { showForgot = false },
+            title = { Text("PIN dimenticato") },
+            text = {
+                Text(
+                    "LifeOS non conserva il PIN né una copia dei dati leggibile senza di esso. " +
+                        "L'unico recupero possibile è il reset completo: verranno eliminati note, " +
+                        "documenti, password e impostazioni salvate su questo dispositivo. " +
+                        "Se hai un backup puoi reimportarlo dopo il reset."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.resetAllData()
+                    showForgot = false
+                    onUnlocked()
+                }) { Text("Reset completo") }
+            },
+            dismissButton = { TextButton(onClick = { showForgot = false }) { Text("Annulla") } }
+        )
     }
 }
 

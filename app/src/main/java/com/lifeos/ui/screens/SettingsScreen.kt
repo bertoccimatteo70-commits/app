@@ -315,7 +315,7 @@ fun SettingsScreen(viewModel: LifeOSViewModel) {
                     )
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
-                        text = "LifeOS 2.0 · Android 8+ · Kotlin + Compose Material 3",
+                        text = "LifeOS 2.1 · Android 8+ · Kotlin + Compose Material 3",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
