@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.data.WidgetSize
 import com.lifeos.data.defaultWidgetSettings
 import com.lifeos.ui.LifeOSViewModel
 import com.lifeos.ui.components.MiniDotLegend
@@ -80,49 +82,81 @@ fun WidgetScreen(viewModel: LifeOSViewModel) {
                 shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = setting.kind.icon(),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.size(10.dp))
-                    Text(
-                        text = setting.kind.label(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(
-                        onClick = {
-                            val index = widgets.indexOf(setting)
-                            viewModel.onWidgetReorder(index, index - 1)
-                        },
-                        enabled = widgets.indexOf(setting) > 0,
-                        modifier = Modifier.size(30.dp)
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = "Sposta su", modifier = Modifier.size(16.dp))
+                        Icon(
+                            imageVector = setting.kind.icon(),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Text(
+                            text = setting.kind.label(),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                val index = widgets.indexOf(setting)
+                                viewModel.onWidgetReorder(index, index - 1)
+                            },
+                            enabled = widgets.indexOf(setting) > 0,
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowUpward,
+                                contentDescription = "Sposta su",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val index = widgets.indexOf(setting)
+                                viewModel.onWidgetReorder(index, index + 1)
+                            },
+                            enabled = widgets.indexOf(setting) < widgets.lastIndex,
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowDownward,
+                                contentDescription = "Sposta giù",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Switch(
+                            checked = setting.visible,
+                            onCheckedChange = { viewModel.onWidgetToggle(setting.kind) }
+                        )
                     }
-                    IconButton(
-                        onClick = {
-                            val index = widgets.indexOf(setting)
-                            viewModel.onWidgetReorder(index, index + 1)
-                        },
-                        enabled = widgets.indexOf(setting) < widgets.lastIndex,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = "Sposta giù", modifier = Modifier.size(16.dp))
+                    if (setting.visible) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Dimensione",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            WidgetSize.entries.forEach { size ->
+                                FilterChip(
+                                    selected = setting.size == size,
+                                    onClick = { viewModel.setWidgetSize(setting.kind, size) },
+                                    label = {
+                                        Text(
+                                            size.name.lowercase(),
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
-                    Switch(
-                        checked = setting.visible,
-                        onCheckedChange = { viewModel.onWidgetToggle(setting.kind) }
-                    )
                 }
             }
         }

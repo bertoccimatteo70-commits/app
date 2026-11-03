@@ -174,7 +174,10 @@ class LifeOSViewModel(context: Context) : ViewModel() {
     // ------------------------------------------------------------ scadenze
 
     fun onDeadlineToggle(id: String, done: Boolean) = commit { it.togglingDeadline(id, done) }
-    fun onDeadlineRemove(id: String) = commit { it.removingDeadline(id) }
+    fun onDeadlineRemove(id: String) {
+        ReminderScheduler.cancelDeadline(appContext, id)
+        commit { it.removingDeadline(id) }
+    }
     fun addDeadline(title: String, dueDateMillis: Long? = null) = commit {
         if (dueDateMillis == null) it.addingDeadline(title) else it.addingDeadline(title, dueDateMillis)
     }
@@ -685,17 +688,27 @@ class LifeOSViewModel(context: Context) : ViewModel() {
         priority: TaskPriority = TaskPriority.NORMAL,
         repeat: RepeatRule = RepeatRule.NONE,
         reminderMinutes: Int = 0
-    ) = commit {
-        it.addingDeadline(
+    ) {
+        val deadline = Deadline(
             title = title,
             dueDateMillis = dueDateMillis,
             priority = priority,
             repeat = repeat,
-            reminderMinutes = reminderMinutes
+            reminderMinutes = reminderMinutes.coerceAtLeast(0)
         )
+        commit { it.copy(deadlines = it.deadlines + deadline) }
+        if (deadline.reminderMinutes > 0) {
+            ReminderScheduler.scheduleDeadline(appContext, deadline)
+        }
     }
 
-    fun completeDeadline(id: String) = commit { it.completingDeadline(id) }
+    fun completeDeadline(id: String) {
+        ReminderScheduler.cancelDeadline(appContext, id)
+        commit { it.completingDeadline(id) }
+        _state.value.deadlines.firstOrNull { it.id == id }?.let {
+            ReminderScheduler.scheduleDeadline(appContext, it)
+        }
+    }
 
     // ------------------------------------------------------------ calendario
 

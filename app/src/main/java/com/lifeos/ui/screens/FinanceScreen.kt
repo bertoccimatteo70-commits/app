@@ -1,5 +1,6 @@
 package com.lifeos.ui.screens
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.data.FinanceReport
 import com.lifeos.data.categoryBudgetStatuses
 import com.lifeos.data.expensesInMonth
 import com.lifeos.data.financeSeries
@@ -89,6 +91,21 @@ fun FinanceScreen(viewModel: LifeOSViewModel) {
                 ?: error("Stream non disponibile")
         }
         message = if (result.isSuccess) "CSV esportato" else "Esportazione fallita: ${result.exceptionOrNull()?.message}"
+    }
+
+    fun sharePdfReport() {
+        val uri = FinanceReport.writePdf(context, state)
+        if (uri == null) {
+            message = "Generazione PDF non riuscita"
+            return
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Condividi report PDF"))
+        message = "Report PDF generato"
     }
 
     LazyColumn(
@@ -350,10 +367,17 @@ fun FinanceScreen(viewModel: LifeOSViewModel) {
 
         item {
             Spacer(modifier = Modifier.height(6.dp))
-            OutlinedButton(onClick = { exportCsv.launch("lifeos-finanze.csv") }) {
-                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.size(4.dp))
-                Text("Esporta CSV")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { exportCsv.launch("lifeos-finanze.csv") }) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Text("CSV")
+                }
+                OutlinedButton(onClick = { sharePdfReport() }) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Text("Report PDF")
+                }
             }
             Text(
                 "Il CSV contiene tutte le entrate e le uscite, non solo quelle del mese.",
@@ -378,14 +402,10 @@ fun FinanceScreen(viewModel: LifeOSViewModel) {
     }
 
     if (addingExpense) {
-        AmountDialog(
-            title = "Nuova spesa",
-            amountLabel = "Importo (€)",
-            categoryLabel = "Categoria",
-            defaultCategory = "Generale",
+        AddExpenseDialog(
             onDismiss = { addingExpense = false },
-            onConfirm = { label, cents, category ->
-                viewModel.addExpense(label, cents, category)
+            onConfirm = { label, cents, category, method ->
+                viewModel.addExpenseFull(label, cents, category, method)
                 addingExpense = false
             }
         )

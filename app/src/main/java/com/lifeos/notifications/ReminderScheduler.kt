@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.lifeos.data.Alarm
+import com.lifeos.data.Deadline
 import com.lifeos.data.LifeOSState
 import com.lifeos.data.Reminder
 import com.lifeos.data.RepeatRule
@@ -84,10 +85,37 @@ object ReminderScheduler {
         pending.cancel()
     }
 
+    /**
+     * Schedules the reminder of a deadline [Deadline.reminderMinutes] before its
+     * due date. A synthetic reminder id keeps it separate from user reminders.
+     */
+    fun scheduleDeadline(context: Context, deadline: Deadline) {
+        val minutes = deadline.reminderMinutes
+        if (minutes <= 0 || deadline.done) return
+        val trigger = deadline.dueDateMillis - minutes * 60_000L
+        if (trigger <= System.currentTimeMillis()) return
+        schedule(
+            context,
+            Reminder(
+                id = "deadline-${deadline.id}",
+                title = deadline.title.ifBlank { "Scadenza" },
+                triggerAtMillis = trigger,
+                repeat = deadline.repeat
+            )
+        )
+    }
+
+    fun cancelDeadline(context: Context, deadlineId: String) {
+        cancel(context, "deadline-$deadlineId")
+    }
+
     /** Re-arms everything enabled; used at boot and after a backup import. */
     fun rescheduleAll(context: Context, state: LifeOSState) {
         state.reminders.filter { it.enabled }.forEach { schedule(context, it) }
         state.alarms.filter { it.enabled }.forEach { scheduleAlarm(context, it) }
+        state.deadlines.filter { !it.done && it.reminderMinutes > 0 }.forEach {
+            scheduleDeadline(context, it)
+        }
     }
 
     fun nextAlarmTime(hour: Int, minute: Int, from: Long): Long {

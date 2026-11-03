@@ -70,6 +70,8 @@ fun CalendarScreen(viewModel: LifeOSViewModel) {
     var monthOffset by remember { mutableStateOf(0) }
     var selectedDay by remember { mutableStateOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH)) }
     var showAdd by remember { mutableStateOf(false) }
+    var showAddEvent by remember { mutableStateOf(false) }
+    var weekView by remember { mutableStateOf(false) }
 
     val displayed = remember(monthOffset) {
         Calendar.getInstance().apply {
@@ -92,17 +94,24 @@ fun CalendarScreen(viewModel: LifeOSViewModel) {
         return start..(start + 24 * 60 * 60 * 1000 - 1)
     }
 
-    val eventDays = remember(state.deadlines, state.reminders, monthOffset) {
+    val eventDays = remember(state.deadlines, state.reminders, state.events, monthOffset) {
         (1..displayed.getActualMaximum(Calendar.DAY_OF_MONTH)).filter { day ->
             val range = millisForDay(day)
             state.deadlines.any { it.dueDateMillis in range } ||
-                state.reminders.any { it.triggerAtMillis in range }
+                state.reminders.any { it.triggerAtMillis in range } ||
+                state.events.any { it.startMillis in range }
         }.toSet()
     }
 
     val selectedRange = millisForDay(selectedDay)
-    val dayDeadlines = state.deadlines.filter { it.dueDateMillis in selectedRange }
-    val dayReminders = state.reminders.filter { it.triggerAtMillis in selectedRange }
+    val visibleRange = if (weekView) {
+        selectedRange.first..(selectedRange.first + 7L * 24 * 60 * 60 * 1000 - 1)
+    } else {
+        selectedRange
+    }
+    val dayDeadlines = state.deadlines.filter { it.dueDateMillis in visibleRange }
+    val dayReminders = state.reminders.filter { it.triggerAtMillis in visibleRange }
+    val dayEvents = state.events.filter { it.startMillis in visibleRange }.sortedBy { it.startMillis }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -135,7 +144,19 @@ fun CalendarScreen(viewModel: LifeOSViewModel) {
                 onDayClick = { selectedDay = it }
             )
             Spacer(modifier = Modifier.height(6.dp))
-            MiniDotLegend("Giorni con scadenze o promemoria")
+            MiniDotLegend("Giorni con scadenze, eventi o promemoria")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(
+                    selected = !weekView,
+                    onClick = { weekView = false },
+                    label = { Text("Giorno", style = MaterialTheme.typography.labelSmall) }
+                )
+                FilterChip(
+                    selected = weekView,
+                    onClick = { weekView = true },
+                    label = { Text("Settimana", style = MaterialTheme.typography.labelSmall) }
+                )
+            }
         }
 
         LazyColumn(
@@ -145,13 +166,17 @@ fun CalendarScreen(viewModel: LifeOSViewModel) {
         ) {
             item {
                 Text(
-                    text = dayFormat.format(Date(selectedRange.first)),
+                    text = if (weekView) {
+                        "Settimana dal " + dayFormat.format(Date(selectedRange.first))
+                    } else {
+                        dayFormat.format(Date(selectedRange.first))
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            if (dayDeadlines.isEmpty() && dayReminders.isEmpty()) {
+            if (dayDeadlines.isEmpty() && dayReminders.isEmpty() && dayEvents.isEmpty()) {
                 item {
                     Text(
                         text = "Nessun evento in questo giorno.",
@@ -225,6 +250,48 @@ fun CalendarScreen(viewModel: LifeOSViewModel) {
                 }
             }
 
+            items(dayEvents, key = { "e-${it.id}" }) { event ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = event.title.ifEmpty { "Evento" },
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = timeFormat.format(Date(event.startMillis)) +
+                                    " · ${event.durationMinutes} min" +
+                                    (if (event.repeat != RepeatRule.NONE) " · ${repeatLabel(event.repeat)}" else ""),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.removeCalendarEvent(event.id) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Elimina evento",
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+            }
+
             item { SectionHeader("Promemoria programmati") }
             if (state.reminders.isEmpty()) {
                 item {
@@ -247,16 +314,40 @@ fun CalendarScreen(viewModel: LifeOSViewModel) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
         }
 
-        Button(
-            onClick = { showAdd = true },
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Nuovo promemoria")
+            Button(
+                onClick = { showAddEvent = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Evento")
+            }
+            Button(
+                onClick = { showAdd = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Promemoria")
+            }
         }
+    }
+
+    if (showAddEvent) {
+        AddEventDialog(
+            defaultStartMillis = selectedRange.first + 9 * 60 * 60 * 1000,
+            onDismiss = { showAddEvent = false },
+            onConfirm = { title, startMillis, duration, repeat ->
+                viewModel.addCalendarEvent(title, startMillis, duration, repeat)
+                showAddEvent = false
+            }
+        )
     }
 
     if (showAdd) {

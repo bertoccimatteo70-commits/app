@@ -69,6 +69,8 @@ import com.lifeos.data.expiringDocuments
 import com.lifeos.data.formatCents
 import com.lifeos.data.parseCents
 import com.lifeos.data.parseTags
+import com.lifeos.data.recentDocuments
+import com.lifeos.data.suggestDocumentCategory
 import com.lifeos.data.RepeatRule
 import com.lifeos.ui.LifeOSViewModel
 import com.lifeos.ui.components.SectionHeader
@@ -88,11 +90,13 @@ fun DocumentsScreen(viewModel: LifeOSViewModel) {
     var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf<String?>(null) }
     var favoritesOnly by remember { mutableStateOf(false) }
+    var recentOnly by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Document?>(null) }
     var creating by remember { mutableStateOf(false) }
     var addingSubscription by remember { mutableStateOf(false) }
 
-    val visible = documentsFor(state.documents, query, category, favoritesOnly)
+    val filtered = documentsFor(state.documents, query, category, favoritesOnly)
+    val visible = if (recentOnly) recentDocuments(filtered, 5) else filtered
     val expiring = state.expiringDocuments()
     val expired = state.expiredDocuments()
     val categories = (documentCategories + state.documents.map { it.category }).distinct()
@@ -133,6 +137,11 @@ fun DocumentsScreen(viewModel: LifeOSViewModel) {
                             modifier = Modifier.size(14.dp)
                         )
                     }
+                )
+                FilterChip(
+                    selected = recentOnly,
+                    onClick = { recentOnly = !recentOnly },
+                    label = { Text("Recenti", style = MaterialTheme.typography.labelSmall) }
                 )
                 FilterChip(
                     selected = category == null,
@@ -221,7 +230,8 @@ fun DocumentsScreen(viewModel: LifeOSViewModel) {
                 subscription = subscription,
                 dueSoon = subscription in dueSubscriptions,
                 onToggle = { viewModel.toggleSubscription(subscription.id, it) },
-                onDelete = { viewModel.removeSubscription(subscription.id) }
+                onDelete = { viewModel.removeSubscription(subscription.id) },
+                onPay = { viewModel.registerSubscriptionPayment(subscription.id) }
             )
         }
 
@@ -379,7 +389,8 @@ private fun SubscriptionRow(
     subscription: Subscription,
     dueSoon: Boolean,
     onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onPay: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -403,7 +414,16 @@ private fun SubscriptionRow(
                     color = if (dueSoon) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (subscription.payments.isNotEmpty()) {
+                    Text(
+                        text = subscription.payments.size.toString() + " pagamenti · ultimo " +
+                            documentDateFormat.format(Date(subscription.payments.last().paidAtMillis)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
+            TextButton(onClick = onPay) { Text("Paga", style = MaterialTheme.typography.labelSmall) }
             Switch(checked = subscription.active, onCheckedChange = onToggle)
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Default.Delete, contentDescription = "Elimina abbonamento", modifier = Modifier.size(16.dp))
@@ -487,6 +507,10 @@ private fun DocumentEditor(
                         )
                     }
                 }
+                TextButton(
+                    onClick = { suggestDocumentCategory(title)?.let { category = it } },
+                    enabled = title.isNotBlank()
+                ) { Text("Suggerisci categoria dal titolo") }
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
