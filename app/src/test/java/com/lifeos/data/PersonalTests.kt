@@ -218,4 +218,54 @@ class PersonalTests {
         assertEquals(epochDay(base), epochDay(base + 3_600_000L))
         assertEquals(epochDay(base) + 1, epochDay(base + day))
     }
+
+    // ------------------------------------------------------------- abitudini
+
+    @Test
+    fun `habit recent days returns the last week oldest first`() {
+        val habit = Habit(name = "Corsa", completedDays = listOf(100L, 102L))
+        val week = habitRecentDays(habit, today = 102L)
+        assertEquals(7, week.size)
+        assertEquals(96L, week.first().first)
+        assertEquals(102L, week.last().first)
+        assertFalse(week.first().second)
+        assertTrue(week[4].second) // giorno 100
+        assertFalse(week[5].second) // giorno 101 saltato
+        assertTrue(week.last().second)
+    }
+
+    @Test
+    fun `habit recent days clamps the requested span`() {
+        val habit = Habit(name = "Acqua")
+        assertEquals(1, habitRecentDays(habit, today = 10L, days = 0).size)
+        assertEquals(31, habitRecentDays(habit, today = 10L, days = 90).size)
+    }
+
+    // -------------------------------------------------------------- password
+
+    @Test
+    fun `password generator fills every enabled group`() {
+        val password = PasswordGenerator.generate(length = 16)
+        assertEquals(16, password.length)
+        assertTrue(password.any { it in 'a'..'z' })
+        assertTrue(password.any { it in 'A'..'Z' })
+        assertTrue(password.any { it.isDigit() })
+        assertTrue(password.any { !it.isLetterOrDigit() })
+    }
+
+    @Test
+    fun `password generator coerces length and honours disabled groups`() {
+        val short = PasswordGenerator.generate(
+            length = 3,
+            useUpper = false,
+            useDigits = false,
+            useSymbols = false
+        )
+        assertEquals(PasswordGenerator.MIN_LENGTH, short.length)
+        assertTrue(short.all { it in 'a'..'z' })
+
+        val long = PasswordGenerator.generate(length = 100, useSymbols = false)
+        assertEquals(PasswordGenerator.MAX_LENGTH, long.length)
+        assertTrue(long.none { !it.isLetterOrDigit() })
+    }
 }

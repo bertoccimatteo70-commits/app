@@ -211,4 +211,17 @@ class LauncherTests {
         assertEquals("third_icon", mapping["com.example.third/com.example.third.ThirdActivity"])
         assertEquals(3, mapping.size)
     }
+
+    @Test
+    fun `protected apps can be enabled and disabled`() {
+        val state = LifeOSState()
+        assertFalse(state.isAppProtected("com.example.banca"))
+
+        val withLock = state.togglingProtectedApp("com.example.banca")
+        assertTrue(withLock.isAppProtected("com.example.banca"))
+        assertEquals(1, withLock.settings.launcherProtectedApps.size)
+
+        val withoutLock = withLock.togglingProtectedApp("com.example.banca")
+        assertFalse(withoutLock.isAppProtected("com.example.banca"))
+    }
 }

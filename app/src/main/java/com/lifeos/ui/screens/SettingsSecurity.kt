@@ -1,5 +1,7 @@
 package com.lifeos.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -58,6 +61,7 @@ fun SecuritySettingsCard(viewModel: LifeOSViewModel) {
     val biometricAvailable = remember { BiometricUnlock.isAvailable(context) }
 
     var dialog by remember { mutableStateOf(SecurityDialog.NONE) }
+    var showProtectedApps by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var pendingPayload by remember { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<String?>(null) }
@@ -141,6 +145,22 @@ fun SecuritySettingsCard(viewModel: LifeOSViewModel) {
         }
 
         Spacer(modifier = Modifier.height(10.dp))
+        Text("App protette", style = MaterialTheme.typography.labelMedium)
+        Text(
+            text = if (!hasPin) "Imposta prima un PIN: senza PIN il blocco delle app non può chiedere nulla."
+            else if (settings.launcherProtectedApps.isEmpty()) "Nessuna app protetta."
+            else "${settings.launcherProtectedApps.size} app chiedono PIN o impronta quando le apri dal launcher.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        OutlinedButton(onClick = { showProtectedApps = true }, enabled = hasPin) {
+            Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.size(4.dp))
+            Text("Scegli le app protette")
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
         Text("Backup sicuro", style = MaterialTheme.typography.labelMedium)
         Text(
             "Il backup cifrato usa AES-256-GCM con una chiave derivata via PBKDF2 dalla password scelta: senza quella password il file è illeggibile.",
@@ -190,6 +210,48 @@ fun SecuritySettingsCard(viewModel: LifeOSViewModel) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
+    }
+
+    if (showProtectedApps) {
+        val candidates = remember(context) { launchableApps(context) }
+        AlertDialog(
+            onDismissRequest = { showProtectedApps = false },
+            title = { Text("App protette") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        "Le app scelte chiedono PIN o impronta solo quando le apri dal launcher di LifeOS.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    if (candidates.isEmpty()) {
+                        Text("Nessuna app avviabile trovata.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    candidates.forEach { candidate ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                candidate.label,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = candidate.packageName in settings.launcherProtectedApps,
+                                onCheckedChange = { viewModel.toggleProtectedApp(candidate.packageName) }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showProtectedApps = false }) { Text("Chiudi") } }
+        )
     }
 
     when (dialog) {
@@ -275,6 +337,24 @@ fun SecuritySettingsCard(viewModel: LifeOSViewModel) {
         )
         SecurityDialog.NONE -> Unit
     }
+}
+
+private data class LaunchableApp(val packageName: String, val label: String)
+
+private fun launchableApps(context: Context): List<LaunchableApp> {
+    val manager = context.packageManager
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    return manager.queryIntentActivities(intent, 0)
+        .map { info ->
+            LaunchableApp(
+                packageName = info.activityInfo.packageName,
+                label = runCatching { info.loadLabel(manager).toString() }
+                    .getOrDefault(info.activityInfo.packageName)
+            )
+        }
+        .distinctBy { it.packageName }
+        .filterNot { it.packageName == context.packageName }
+        .sortedBy { it.label.lowercase() }
 }
 
 @Composable

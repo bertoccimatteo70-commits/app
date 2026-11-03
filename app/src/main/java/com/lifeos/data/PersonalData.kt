@@ -284,6 +284,18 @@ fun LifeOSState.togglingHabitDay(id: String, day: Long = epochDay()): LifeOSStat
         )
     })
 
+/**
+ * The last [days] epoch-days for a habit, oldest first, each with its state.
+ * Used by the weekly grid so a missed day can still be marked later.
+ */
+fun habitRecentDays(habit: Habit, today: Long = epochDay(), days: Int = 7): List<Pair<Long, Boolean>> {
+    val span = days.coerceIn(1, 31)
+    return (span - 1 downTo 0).map { offset ->
+        val day = today - offset
+        day to (day in habit.completedDays)
+    }
+}
+
 /** Consecutive days ending today (or yesterday, if today is not yet done). */
 fun habitStreak(habit: Habit, today: Long = epochDay()): Int {
     val days = habit.completedDays.toSet()

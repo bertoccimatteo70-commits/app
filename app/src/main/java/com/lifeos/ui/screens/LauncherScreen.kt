@@ -49,6 +49,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -100,12 +101,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifeos.security.BiometricUnlock
 import com.lifeos.data.AppFolder
 import com.lifeos.data.HomeEntry
 import com.lifeos.data.HomePage
@@ -158,6 +163,7 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
     var showWidgetPicker by remember { mutableStateOf(false) }
     var showPages by remember { mutableStateOf(false) }
     var iconTarget by remember { mutableStateOf<String?>(null) }
+    var lockedTarget by remember { mutableStateOf<String?>(null) }
 
     val pages = remember(settings.homePages) {
         settings.homePages.ifEmpty { listOf(HomePage(id = "home-1")) }
@@ -209,6 +215,11 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
     val dock = remember(records, settings) { dockApps(records, settings) }
 
     fun openApp(packageName: String) {
+        // Apps marked as protected ask for the PIN (or biometry) before launching.
+        if (packageName in settings.launcherProtectedApps && settings.pinHash.isNotEmpty()) {
+            lockedTarget = packageName
+            return
+        }
         launchApp(context, packageName) ?: run { message = "App non disponibile" }
     }
 
@@ -481,6 +492,19 @@ fun LauncherScreen(viewModel: LifeOSViewModel) {
                 folderTargetApp = null
                 folderSeedApp = app
             }
+        )
+    }
+
+    lockedTarget?.let { packageName ->
+        AppLockDialog(
+            appLabel = appsByPackage[packageName]?.label ?: packageName,
+            allowBiometric = settings.biometricEnabled,
+            verifyPin = viewModel::verifyPin,
+            onUnlocked = {
+                lockedTarget = null
+                if (!launchApp(context, packageName)) message = "App non disponibile"
+            },
+            onDismiss = { lockedTarget = null }
         )
     }
 
@@ -1419,6 +1443,77 @@ private fun saveBoundWidgetIds(context: Context, ids: List<Int>) {
 
 private fun removeBoundWidgetId(context: Context, id: Int) {
     saveBoundWidgetIds(context, loadBoundWidgetIds(context) - id)
+}
+
+@Composable
+private fun AppLockDialog(
+    appLabel: String,
+    allowBiometric: Boolean,
+    verifyPin: (String) -> Boolean,
+    onUnlocked: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var pin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun biometricUnlock() {
+        val activity = context as? FragmentActivity
+        if (activity == null) {
+            error = "Sblocco biometrico non disponibile"
+            return
+        }
+        BiometricUnlock.prompt(
+            activity = activity,
+            onSuccess = onUnlocked,
+            onError = { reason -> error = reason },
+            onCancel = { }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("App protetta") },
+        text = {
+            Column {
+                Text(
+                    "Inserisci il PIN per aprire $appLabel.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = {
+                        pin = it.filter(Char::isDigit).take(8)
+                        error = null
+                    },
+                    label = { Text("PIN") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                )
+                error?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+                if (allowBiometric) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    TextButton(onClick = ::biometricUnlock) { Text("Usa impronta o volto") }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (verifyPin(pin)) onUnlocked() else error = "PIN errato" },
+                enabled = pin.length >= 4
+            ) { Text("Apri") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+    )
 }
 
 private sealed interface BindOutcome {

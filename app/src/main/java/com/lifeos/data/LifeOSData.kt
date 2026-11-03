@@ -88,6 +88,8 @@ data class UserSettings(
     val launcherRows: Int = 5,
     val launcherDockSize: Int = 4,
     val launcherHiddenApps: List<String> = emptyList(),
+    /** Apps that require the PIN (or biometry) before the launcher opens them. */
+    val launcherProtectedApps: List<String> = emptyList(),
     val launcherSort: LauncherSort = LauncherSort.NAME,
     val launcherCustomOrder: List<String> = emptyList(),
     val launcherFolders: List<AppFolder> = emptyList(),
@@ -346,6 +348,15 @@ fun LifeOSState.completingDeadline(id: String): LifeOSState = copy(deadlines = d
 
 fun LifeOSState.togglingDeadline(id: String, done: Boolean): LifeOSState =
     copy(deadlines = deadlines.map { if (it.id == id) it.copy(done = done) else it })
+
+fun LifeOSState.togglingProtectedApp(packageName: String): LifeOSState {
+    val current = settings.launcherProtectedApps
+    val updated = if (packageName in current) current - packageName else current + packageName
+    return withSettings(settings.copy(launcherProtectedApps = updated))
+}
+
+fun LifeOSState.isAppProtected(packageName: String): Boolean =
+    packageName in settings.launcherProtectedApps
 
 fun LifeOSState.removingDeadline(id: String): LifeOSState =
     copy(deadlines = deadlines.filterNot { it.id == id })

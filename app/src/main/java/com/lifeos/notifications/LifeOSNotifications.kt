@@ -49,7 +49,21 @@ object LifeOSNotifications {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun notify(context: Context, id: Int, channel: String, title: String, text: String) {
+    /**
+     * Data needed by the notification action that postpones a reminder or an
+     * alarm by ten minutes. [kind] is [SnoozeReceiver.KIND_ALARM] or
+     * [SnoozeReceiver.KIND_REMINDER] so the receiver can silence the right item.
+     */
+    data class Snooze(val kind: String, val itemId: String, val title: String, val text: String)
+
+    fun notify(
+        context: Context,
+        id: Int,
+        channel: String,
+        title: String,
+        text: String,
+        snooze: Snooze? = null
+    ) {
         if (!hasPermission(context)) return
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         ensureChannels(context)
@@ -63,7 +77,7 @@ object LifeOSNotifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, channel)
+        val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(text)
@@ -71,7 +85,16 @@ object LifeOSNotifications {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(openApp)
-            .build()
+
+        if (snooze != null) {
+            builder.addAction(
+                android.R.drawable.ic_popup_reminder,
+                "Rinvia di 10 minuti",
+                SnoozeReceiver.pendingIntent(context, snooze)
+            )
+        }
+
+        val notification = builder.build()
 
         try {
             NotificationManagerCompat.from(context).notify(id, notification)

@@ -23,12 +23,19 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 val settings = LifeOSStorage.flow(context).first().settings
                 if (settings.notificationsEnabled) {
+                    val text = if (repeat == RepeatRule.NONE) "Promemoria di LifeOS" else "Promemoria ricorrente"
                     LifeOSNotifications.notify(
                         context = context,
                         id = ReminderScheduler.requestCode(id),
                         channel = LifeOSNotifications.CHANNEL_REMINDERS,
                         title = title,
-                        text = if (repeat == RepeatRule.NONE) "Promemoria di LifeOS" else "Promemoria ricorrente"
+                        text = text,
+                        snooze = LifeOSNotifications.Snooze(
+                            kind = SnoozeReceiver.KIND_REMINDER,
+                            itemId = id,
+                            title = title,
+                            text = text
+                        )
                     )
                 }
 

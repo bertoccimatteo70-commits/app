@@ -52,12 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lifeos.data.Habit
 import com.lifeos.data.MeasureUnit
+import com.lifeos.data.PasswordGenerator
 import com.lifeos.data.budgetPercent
 import com.lifeos.data.convertMeasure
 import com.lifeos.data.epochDay
 import com.lifeos.data.expensesInMonth
 import com.lifeos.data.formatCents
 import com.lifeos.data.habitBestStreak
+import com.lifeos.data.habitRecentDays
 import com.lifeos.data.habitStreak
 import com.lifeos.data.measureFamilies
 import com.lifeos.data.measureUnits
@@ -405,26 +407,48 @@ fun HabitsTool(viewModel: LifeOSViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = doneToday,
-                        onCheckedChange = { viewModel.toggleHabitToday(habit.id) }
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(habit.name, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "Serie attuale ${habitStreak(habit)} · record ${habitBestStreak(habit)} · ${habit.completedDays.size} giorni",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = doneToday,
+                            onCheckedChange = { viewModel.toggleHabitToday(habit.id) }
                         )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(habit.name, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Serie attuale ${habitStreak(habit)} · record ${habitBestStreak(habit)} · ${habit.completedDays.size} giorni",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { viewModel.removeHabit(habit.id) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Elimina abitudine", modifier = Modifier.size(16.dp))
+                        }
                     }
-                    IconButton(onClick = { viewModel.removeHabit(habit.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Elimina abitudine", modifier = Modifier.size(16.dp))
+                    // Ultimi sette giorni: un giorno saltato si può ancora segnare.
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 10.dp, end = 10.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        habitRecentDays(habit, today).forEach { (day, done) ->
+                            FilterChip(
+                                selected = done,
+                                onClick = { viewModel.toggleHabitDay(habit.id, day) },
+                                label = {
+                                    Text(
+                                        habitDayInitial(day),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -623,6 +647,7 @@ fun PasswordTool(viewModel: LifeOSViewModel) {
         var title by remember { mutableStateOf("") }
         var username by remember { mutableStateOf("") }
         var password by remember { mutableStateOf("") }
+        var generatedLength by remember { mutableStateOf(20) }
         var error by remember { mutableStateOf<String?>(null) }
         AlertDialog(
             onDismissRequest = { adding = false },
@@ -647,6 +672,27 @@ fun PasswordTool(viewModel: LifeOSViewModel) {
                         label = { Text("Password") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation()
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(12, 16, 20, 24).forEach { size ->
+                            FilterChip(
+                                selected = generatedLength == size,
+                                onClick = { generatedLength = size },
+                                label = { Text("$size", style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
+                        TextButton(onClick = {
+                            password = PasswordGenerator.generate(generatedLength)
+                            error = null
+                        }) { Text("Genera") }
+                    }
+                    Text(
+                        "Il generatore esclude i caratteri ambigui (l, I, O, 1, 0).",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
                 }
@@ -705,4 +751,12 @@ fun PasswordTool(viewModel: LifeOSViewModel) {
             }
         )
     }
+}
+
+/** Iniziale del giorno della settimana per un epoch-day (lun-dom). */
+private fun habitDayInitial(epochDayValue: Long): String {
+    val zone = java.util.TimeZone.getDefault()
+    val millis = epochDayValue * 86_400_000L - zone.getOffset(epochDayValue * 86_400_000L)
+    val format = java.text.SimpleDateFormat("EE", java.util.Locale.ITALIAN)
+    return format.format(java.util.Date(millis)).take(1).uppercase()
 }

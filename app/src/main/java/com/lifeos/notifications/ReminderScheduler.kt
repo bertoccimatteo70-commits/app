@@ -130,6 +130,11 @@ object ReminderScheduler {
         return calendar.timeInMillis
     }
 
+    /** Schedules an already built broadcast, used by the snooze action. */
+    fun scheduleAt(context: Context, triggerAt: Long, pending: PendingIntent) {
+        setAlarm(context, triggerAt, pending)
+    }
+
     private fun setAlarm(context: Context, triggerAt: Long, pending: PendingIntent) {
         val manager = context.getSystemService(AlarmManager::class.java) ?: return
         try {

@@ -25,12 +25,19 @@ class AlarmReceiver : BroadcastReceiver() {
             try {
                 val settings = LifeOSStorage.flow(context).first().settings
                 if (settings.notificationsEnabled) {
+                    val text = String.format(Locale.getDefault(), "Sveglia delle %02d:%02d", hour, minute)
                     LifeOSNotifications.notify(
                         context = context,
                         id = ReminderScheduler.requestCode("alarm-$id"),
                         channel = LifeOSNotifications.CHANNEL_ALARMS,
                         title = label,
-                        text = String.format(Locale.getDefault(), "Sveglia delle %02d:%02d", hour, minute)
+                        text = text,
+                        snooze = LifeOSNotifications.Snooze(
+                            kind = SnoozeReceiver.KIND_ALARM,
+                            itemId = id,
+                            title = label,
+                            text = text
+                        )
                     )
                 }
                 armNext(context, id, label, hour, minute)

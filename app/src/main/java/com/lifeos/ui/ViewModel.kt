@@ -197,6 +197,12 @@ class LifeOSViewModel(context: Context) : ViewModel() {
 
     // ------------------------------------------------------------- obiettivi
 
+    // ------------------------------------------------- blocco app del launcher
+
+    fun isAppProtected(packageName: String): Boolean = _state.value.isAppProtected(packageName)
+
+    fun toggleProtectedApp(packageName: String) = commit { it.togglingProtectedApp(packageName) }
+
     fun onGoalProgress(id: String, progressPercent: Int) = commit { it.settingGoalProgress(id, progressPercent) }
     fun onGoalRemove(id: String) = commit { it.removingGoal(id) }
     fun addGoal(title: String) = commit { it.addingGoal(title) }
@@ -399,6 +405,7 @@ class LifeOSViewModel(context: Context) : ViewModel() {
 
     fun addHabit(name: String) = commit { it.addingHabit(name) }
     fun toggleHabitToday(id: String) = commit { it.togglingHabitDay(id) }
+    fun toggleHabitDay(id: String, epochDay: Long) = commit { it.togglingHabitDay(id, epochDay) }
     fun removeHabit(id: String) = commit { it.removingHabit(id) }
 
     // ------------------------------------------------------------- spesa

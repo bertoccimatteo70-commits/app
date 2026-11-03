@@ -18,14 +18,14 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 | Abbonamenti | importo, prossima scadenza, ricorrenza, attivo/disattivo, evidenza di quelli in scadenza |
 | Spese | inserimento in centesimi, totale del mese, budget mensile con percentuale di consumo |
 | Finanze | entrate e uscite del mese con saldo, budget per categoria (sforamento evidenziato), abbonamenti normalizzati su mese/anno, andamento degli ultimi 6 mesi, export CSV di tutti i movimenti |
-| Abitudini | spunta giornaliera, serie attuale e record calcolati dalle date salvate |
+| Abitudini | spunta giornaliera, serie attuale e record calcolati dalle date salvate, griglia degli ultimi 7 giorni per recuperare un giorno saltato |
 | Lista della spesa | articoli con quantità, completamento, pulizia dei completati |
-| Password | gestore locale: ogni segreto è cifrato con AES-256-GCM e chiave non esportabile dell'Android Keystore |
+| Password | gestore locale: ogni segreto è cifrato con AES-256-GCM e chiave non esportabile dell'Android Keystore; generatore di password (12-24 caratteri, senza caratteri ambigui), copia e condivisione |
 | Strumenti | calcolatrice con parser reale, convertitori (lunghezza, peso, volume, temperatura, dati), timer con notifica, cronometro con giri, sveglie |
 | Launcher | più pagine Home riordinabili, dock configurabile, griglia 3-8 colonne e 3-8 righe, dimensione icone e spaziatura, cartelle con nome/colore/icone, app nascoste con sezione dedicata, ordinamento A-Z/recenti/personalizzato, icon pack (appfilter), icone personalizzate da galleria, rinomina app, ricerca, drawer a elenco o griglia, widget Android, gesture (scorri su per il drawer, scorri giù per le notifiche, doppio tocco per bloccare lo schermo) |
-| Notifiche | canali, promemoria e sveglie con AlarmManager, rischedulazione al boot, permessi gestiti |
+| Notifiche | canali, promemoria e sveglie con AlarmManager, rischedulazione al boot, permessi gestiti, azione "Rinvia di 10 minuti" su promemoria e sveglie |
 | Backup | export/import JSON versionato; in più backup cifrato AES-256-GCM con password (PBKDF2), import che rischedula i promemoria |
-| Sicurezza | PIN con hash PBKDF2 e salt, blocco biometrico, timeout di blocco configurabile, blocco temporaneo dopo 5 tentativi, registro locale eventi, blocco screenshot, recupero PIN tramite reset dichiarato, cancellazione selettiva (documenti, password, tutto) |
+| Sicurezza | PIN con hash PBKDF2 e salt, blocco biometrico, blocco delle singole app del launcher (PIN o impronta prima dell'apertura), timeout di blocco configurabile, blocco temporaneo dopo 5 tentativi, registro locale eventi, blocco screenshot, recupero PIN tramite reset dichiarato, cancellazione selettiva (documenti, password, tutto) |
 | Privacy | centro privacy con stato reale dei permessi e scorciatoie alle impostazioni Android, informativa interna, registro eventi, elenco trasparente dei dati trattati |
 | Temi | tema sistema/chiaro/scuro/automatico per orario, 5 accenti, colori HEX personalizzati con verifica contrasto WCAG, angoli 0-32 dp, scala del testo, animazioni, layout compatto, temi salvati con nome, applicazione, eliminazione, export/import JSON, ripristino |
 | Ricerca universale | Command Center dalla barra superiore: attività, note, scadenze, documenti, obiettivi, promemoria, abitudini, spese, entrate, abbonamenti e sezioni delle impostazioni; filtri per categoria, cronologia, apertura diretta del risultato, password incluse solo su richiesta esplicita |
@@ -57,17 +57,18 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - **Automazioni locali**: non implementate. Android non consente di cambiare modalità notte o avviare azioni di sistema da un'app senza permessi speciali (WRITE_SECURE_SETTINGS / accessibilità): restano fuori per non chiedere permessi che promettono più di quanto possano fare.
 - **Ricerca globale**: copre i dati presenti nell'app e le sezioni delle impostazioni. Non legge il testo dentro PDF/immagini (nessun OCR) e le credenziali compaiono solo attivando l'opzione dedicata, senza mai mostrare il testo cifrato.
 - **Tema automatico per orario**: il cambio giorno/notte è valutato quando l'app si ricompone o viene riaperta; non c'è un job che cambia i colori alle 20:00 con l'app in primo piano.
-- **Export finanziario**: CSV con separatore `;` e decimali con virgola per i fogli di calcolo italiani; l'export PDF dei report non è implementato.
+- **Export finanziario**: CSV con separatore `;` e decimali con virgola per i fogli di calcolo italiani; il report PDF è generato con `PdfDocument` (A4) e condiviso via FileProvider, senza carta intestata personalizzabile.
 - **File manager, scanner/OCR, automazioni, rubrica e cassaforte file**: non ancora implementati (fasi C-G della roadmap sotto).
-- **Widget Android**: l'hosting funziona solo se LifeOS è impostata come app Home; senza quel ruolo il sistema nega il binding e l'app lo spiega.
-- **Sveglie**: mostrano una notifica, non una schermata a tutto schermo con suoneria prolungata.
+- **Widget Android**: l'hosting funziona solo se LifeOS è impostata come app Home; il primo binding passa dalla conferma di sistema `ACTION_APPWIDGET_BIND`, perché un'app normale non può ottenere il permesso `BIND_APPWIDGET`.
+- **Sveglie**: mostrano una notifica alta con azione "Rinvia di 10 minuti"; non aprono una schermata a tutto schermo con suoneria prolungata.
+- **Blocco app**: protegge solo le app aperte dal launcher di LifeOS; un'app aperta da un altro launcher o dal sistema non passa dal controllo.
 - **Sveglie esatte**: dipendono dal permesso `SCHEDULE_EXACT_ALARM`; se negato si usano sveglie non esatte.
 - **Backup cifrato su altro dispositivo**: i segreti del gestore password restano cifrati con la chiave del dispositivo di origine, quindi su un telefono nuovo vanno reinseriti; note, documenti e resto dello stato si ripristinano normalmente.
 - **APK di release in CI**: viene firmato solo se i quattro secret `RELEASE_*` sono configurati sul repository; senza di essi il job produce un APK non firmato e lo segnala con un warning, invece di ripiegare sulla chiave di debug.
 
 ## Test
 
-`./gradlew :app:testDebugUnitTest` esegue 108 test unitari:
+`./gradlew :app:testDebugUnitTest` esegue 147 test unitari:
 
 - modello dati, transizioni e backup (`LifeOSDataTests`, `UserInteractionsTests`, `WidgetModelTests`, `BackupTests`);
 - calcolatrice (`CalculatorTests`);
@@ -78,7 +79,7 @@ Tutto è locale: nessun account, nessun server, nessun permesso INTERNET.
 - ricerca: corpo delle note, filtri, ranking, password nascoste, cronologia (`SearchTests`);
 - finanze: saldo, budget per categoria, serie mensile, abbonamenti normalizzati, escaping CSV (`FinanceTests`).
 
-I test UI strumentali non sono inclusi: richiedono un emulatore, non disponibile nell'ambiente di build usato.
+In più, `app/src/androidTest` contiene un test strumentale di avvio (`AppLaunchTest`): la pipeline CI avvia un emulatore API 34 e verifica che la `MainActivity` raggiunga lo stato `RESUMED` con contenuto allegato, così un crash all'avvio viene rilevato automaticamente.
 
 ## Stato delle fasi
 
@@ -89,8 +90,8 @@ I test UI strumentali non sono inclusi: richiedono un emulatore, non disponibile
 | C | Documenti, scanner, OCR e burocrazia | **non iniziata**: l'archivio documenti esistente resta disponibile, scanner/OCR richiedono una scelta esplicita sulla dipendenza (modello offline) |
 | D | File manager, strumenti e gestione quotidiana | **non iniziata** |
 | E | Sveglie, notifiche e automazioni | parziale: sveglie con AlarmManager e canali separati già presenti; mancano schermata full-screen, snooze e automazioni |
-| F | Dashboard, ricerca globale e produttività | **parziale in 3.0**: Command Center implementato e collegato ai dati reali; restano calendario multi-vista, progetti, sottoattività e note con cestino |
-| G | Accessibilità, backup, ottimizzazione e test finali | parziale: backup versionato e cifrato già presenti; audit accessibilità e test UI strumentali mancano |
+| F | Dashboard, ricerca globale e produttività | **completata**: Command Center, calendario giorno/settimana con eventi reali, progetti, sottoattività, traguardi degli obiettivi, note con cestino e cartelle |
+| G | Accessibilità, backup, ottimizzazione e test finali | **quasi completa**: backup versionato e cifrato, suite unitaria a 147 test e test strumentale di avvio in CI; l'audit di accessibilità completo non è stato eseguito |
 
 Le fasi non ancora iniziate non hanno pulsanti finti: semplicemente non sono presenti nell'interfaccia.
 
@@ -187,7 +188,9 @@ Il workflow `.github/workflows/android.yml`, su push alle branch `main` o
 `freebuff/e374e51647df726e31db2253` oppure con `workflow_dispatch`:
 
 1. esegue i test unitari e pubblica `LifeOS-unit-test-results`;
-2. compila l'APK di debug (`LifeOS-debug-apk`) e l'APK di release
+2. avvia un emulatore Android API 34 (x86_64, KVM) ed esegue il test strumentale
+   di avvio, pubblicando `LifeOS-instrumented-test-results`;
+3. compila l'APK di debug (`LifeOS-debug-apk`) e l'APK di release
    (`LifeOS-release-apk`), firmandolo con la chiave reale quando i secret sono
    presenti.
 
@@ -196,6 +199,6 @@ Il workflow `.github/workflows/android.yml`, su push alle branch `main` o
 - `POST_NOTIFICATIONS`, `VIBRATE`: promemoria, sveglie e timer.
 - `SCHEDULE_EXACT_ALARM`: sveglie all'ora esatta, con fallback se negato.
 - `RECEIVE_BOOT_COMPLETED`: rischedulazione dopo il riavvio.
-- `BIND_APPWIDGET`: hosting dei widget quando LifeOS è la Home.
+- Nessun permesso signature: il binding dei widget usa la conferma di sistema, non `BIND_APPWIDGET`.
 - `USE_BIOMETRIC`: sblocco con impronta o volto.
 - Nessuna fotocamera richiesta: le foto passano dall'app fotocamera di sistema.
