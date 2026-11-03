@@ -255,6 +255,69 @@ fun SettingsScreen(
 
         }
 
+        if (matches("launcher", "home", "predefinito", "default", "android")) {
+        item { SectionHeader("Launcher predefinito") }
+        item {
+            SettingsCard {
+                Text(
+                    text = "Attualmente: " + if (state.settings.defaultHomeLauncher) {
+                        "LifeOS"
+                    } else {
+                        "Launcher originale"
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedButton(onClick = {
+                    viewModel?.setDefaultHomeLauncher()
+                    viewModel?.openAndroidHomeChooser()
+                }) { Text("Usa LifeOS come launcher predefinito") }
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedButton(onClick = {
+                    viewModel?.clearDefaultHomeLauncher()
+                    viewModel?.openAndroidHomeChooser()
+                }) { Text("Torna al launcher originale") }
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedButton(onClick = { viewModel?.openAndroidHomeChooser() }) {
+                    Text("Scegli launcher da Android")
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Android apre la schermata ufficiale di scelta del launcher: seleziona " +
+                        "LifeOS e conferma con \"Sempre\" per usarla come Home.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        }
+
+        if (matches("accessibilita", "accessibilità", "contrasto", "font", "animazioni")) {
+        item { SectionHeader("Accessibilità") }
+        item {
+            SettingsCard {
+                SwitchRow(
+                    title = "Contrasto elevato",
+                    subtitle = "Aumenta il contrasto di testi e bordi",
+                    checked = state.settings.highContrast,
+                    onCheckedChange = { viewModel?.setHighContrast(it) }
+                )
+                SwitchRow(
+                    title = "Riduzione animazioni",
+                    subtitle = "Riduce le transizioni dell'interfaccia",
+                    checked = state.settings.reduceMotion,
+                    onCheckedChange = { viewModel?.setReduceMotion(it) }
+                )
+                SwitchRow(
+                    title = "Font grandi",
+                    subtitle = "Ingrandisce il testo dell'interfaccia",
+                    checked = state.settings.largeFont,
+                    onCheckedChange = { viewModel?.setLargeFont(it) }
+                )
+            }
+        }
+        }
+
         if (matches("sistema", "home", "permessi", "versione", "info", "android")) {
         item { SectionHeader("Sistema") }
         item {

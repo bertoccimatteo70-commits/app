@@ -457,6 +457,26 @@ class LifeOSViewModel(context: Context) : ViewModel() {
     fun setSwipeDownNotifications(enabled: Boolean) = updateSettings { it.copy(swipeDownShowsNotifications = enabled) }
     fun setDoubleTapLock(enabled: Boolean) = updateSettings { it.copy(doubleTapLocksScreen = enabled) }
 
+    // ------------------------------------------------- launcher predefinito
+
+    /** Remembers that the user chose LifeOS as the system Home app. */
+    fun setDefaultHomeLauncher() = updateSettings { it.copy(defaultHomeLauncher = true) }
+    fun clearDefaultHomeLauncher() = updateSettings { it.copy(defaultHomeLauncher = false) }
+
+    /** Opens the official Android home-app chooser. */
+    fun openAndroidHomeChooser() {
+        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN)
+        intent.addCategory(android.content.Intent.CATEGORY_HOME)
+        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        runCatching { appContext.startActivity(intent) }
+    }
+
+    // ---------------------------------------------------------- accessibilita
+
+    fun setHighContrast(enabled: Boolean) = updateSettings { it.copy(highContrast = enabled) }
+    fun setReduceMotion(enabled: Boolean) = updateSettings { it.copy(reduceMotion = enabled) }
+    fun setLargeFont(enabled: Boolean) = updateSettings { it.copy(largeFont = enabled) }
+
     // ----------------------------------------------------- cartelle e pagine
 
     /** Creates a folder and returns its id so the caller can keep editing it. */

@@ -96,6 +96,11 @@ data class UserSettings(
     val swipeUpOpensDrawer: Boolean = true,
     val swipeDownShowsNotifications: Boolean = false,
     val doubleTapLocksScreen: Boolean = false,
+    // --- launcher predefinito e accessibilita ---
+    val defaultHomeLauncher: Boolean = false,
+    val highContrast: Boolean = false,
+    val reduceMotion: Boolean = false,
+    val largeFont: Boolean = false,
     val homeBackgroundImage: String? = null,
     // --- privacy ---
     val screenshotProtection: Boolean = false,

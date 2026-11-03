@@ -58,6 +58,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Deadlines("Scadenze", Icons.Default.Schedule),
     Calendar("Calendario", Icons.Default.CalendarMonth),
     Documents("Documenti", Icons.Default.Folder),
+    FileManager("File", Icons.Default.Folder),
     Finance("Finanze", Icons.Default.AccountBalanceWallet),
     Goals("Obiettivi", Icons.Default.Flag),
     Dashboard("Dashboard", Icons.Default.Insights),
@@ -194,6 +195,7 @@ fun LifeOSScreen(
                     Tab.Deadlines -> DeadlinesScreen(viewModel = viewModel)
                     Tab.Calendar -> CalendarScreen(viewModel = viewModel)
                     Tab.Documents -> DocumentsScreen(viewModel = viewModel)
+                    Tab.FileManager -> FileManagerScreen(viewModel = viewModel)
                     Tab.Finance -> FinanceScreen(viewModel = viewModel)
                     Tab.Goals -> GoalsScreen(viewModel = viewModel)
                     Tab.Dashboard -> DashboardScreen(viewModel = viewModel)
