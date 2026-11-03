@@ -61,6 +61,67 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  instrumented-test:
+    name: Instrumented startup test (emulator)
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+          packages: ''
+
+      - name: Accept Android SDK licenses and install SDK packages
+        run: |
+          printf 'y\n%.0s' {1..100} > "$RUNNER_TEMP/android-sdk-licenses.txt"
+          sdkmanager --licenses < "$RUNNER_TEMP/android-sdk-licenses.txt" > /dev/null
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      # The emulator needs hardware acceleration: make the KVM device usable by
+      # the non-root runner user on the hosted Ubuntu VM.
+      - name: Enable KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Run instrumented tests on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim
+            -camera-back none -camera-front none -no-snapshot
+          script: |
+            chmod +x gradlew
+            ./gradlew :app:connectedDebugAndroidTest --stacktrace
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LifeOS-instrumented-test-results
+          path: |
+            app/build/reports/androidTests/connected
+            app/build/outputs/androidTest-results/connected
+          retention-days: 14
+          if-no-files-found: warn
+
   build:
     name: Debug and Release APK
     runs-on: ubuntu-latest
