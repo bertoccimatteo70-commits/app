@@ -5,8 +5,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Declared so LifeOS can host Android widgets when it is the home app. -->
-    <uses-permission android:name="android.permission.BIND_APPWIDGET" />
+    <!-- Android widgets are bound through the system's ACTION_APPWIDGET_BIND
+         confirmation, so no signature-level permission is declared here. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- Used only by the optional "swipe down for notifications" gesture. -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />

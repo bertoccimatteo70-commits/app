@@ -1,11 +1,13 @@
 package com.lifeos.ui.screens
 
+import android.app.Activity
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
@@ -82,8 +84,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1264,6 +1268,25 @@ private fun WidgetPickerDialog(
         runCatching { AppWidgetManager.getInstance(context).installedProviders }
             .getOrDefault(emptyList())
     }
+    var pendingId by remember { mutableStateOf<Int?>(null) }
+
+    // A normal app cannot hold BIND_APPWIDGET, so the first binding is confirmed
+    // by the system: the answer tells us whether the widget may be hosted.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val id = pendingId
+        pendingId = null
+        if (id != null && result.resultCode == Activity.RESULT_OK) {
+            saveBoundWidgetIds(context, loadBoundWidgetIds(context) + id)
+            onMessage("Widget aggiunto.")
+            onDismiss()
+        } else {
+            if (id != null) runCatching { AppWidgetHost(context, HOST_ID).deleteAppWidgetId(id) }
+            onMessage("Aggiunta del widget annullata.")
+            onDismiss()
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1274,8 +1297,9 @@ private fun WidgetPickerDialog(
                     Text("Nessun widget installato sul dispositivo.", style = MaterialTheme.typography.bodySmall)
                 } else {
                     Text(
-                        "I widget vengono ospitati solo quando LifeOS è l'app Home. " +
-                            "Se il sistema rifiuta l'aggiunta, imposta LifeOS come Home e riprova.",
+                        "I widget vengono mostrati nella Home di LifeOS e il sistema " +
+                            "chiede conferma la prima volta che ne aggiungi uno. " +
+                            "Per vederli, imposta LifeOS come app Home.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1284,8 +1308,29 @@ private fun WidgetPickerDialog(
                         val label = runCatching { provider.loadLabel(context.packageManager) }
                             .getOrDefault(provider.provider.packageName)
                         TextButton(onClick = {
-                            onMessage(bindWidget(context, provider))
-                            onDismiss()
+                            when (val outcome = bindWidget(context, provider)) {
+                                is BindOutcome.Bound -> {
+                                    onMessage("Widget aggiunto.")
+                                    onDismiss()
+                                }
+                                is BindOutcome.NeedsPermission -> {
+                                    pendingId = outcome.appWidgetId
+                                    val launched = runCatching { permissionLauncher.launch(outcome.request) }
+                                    if (launched.isFailure) {
+                                        pendingId = null
+                                        runCatching {
+                                            AppWidgetHost(context, HOST_ID)
+                                                .deleteAppWidgetId(outcome.appWidgetId)
+                                        }
+                                        onMessage("Il sistema non permette di aggiungere widget da questa app.")
+                                        onDismiss()
+                                    }
+                                }
+                                is BindOutcome.Failure -> {
+                                    onMessage(outcome.message)
+                                    onDismiss()
+                                }
+                            }
                         }) { Text(label) }
                     }
                 }
@@ -1302,34 +1347,53 @@ private fun AndroidWidgetHost(
 ) {
     val context = LocalContext.current
     val host = remember { runCatching { AppWidgetHost(context, HOST_ID) }.getOrNull() }
-    val hostViews = remember { mutableStateListOf<AppWidgetHostView>() }
+    val hostViews = remember { mutableStateMapOf<Int, AppWidgetHostView>() }
+    var widgetVersion by remember { mutableStateOf(0) }
 
     DisposableEffect(host) {
         runCatching { host?.startListening() }
-        onDispose { runCatching { host?.stopListening() } }
+        // The picker stores the new id in SharedPreferences: without this listener a
+        // widget added from the dialog would only appear after reopening the launcher.
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_WIDGETS) widgetVersion += 1
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            runCatching { host?.stopListening() }
+        }
     }
 
-    LaunchedEffect(host) {
+    LaunchedEffect(host, widgetVersion) {
         if (host == null) {
             onMessage("Il dispositivo non permette di ospitare widget in questa app.")
             return@LaunchedEffect
         }
         val manager = AppWidgetManager.getInstance(context)
-        loadBoundWidgetIds(context).forEach { id ->
+        val boundIds = loadBoundWidgetIds(context)
+        (hostViews.keys - boundIds.toSet()).forEach { id ->
+            hostViews.remove(id)
+            runCatching { host.deleteAppWidgetId(id) }
+        }
+        boundIds.forEach { id ->
             if (manager.getAppWidgetInfo(id) == null) {
-                host.deleteAppWidgetId(id)
+                runCatching { host.deleteAppWidgetId(id) }
                 removeBoundWidgetId(context, id)
-            } else {
+                hostViews.remove(id)
+            } else if (hostViews[id] == null) {
                 val view = runCatching { host.createView(context, id, null) }.getOrNull()
-                if (view != null) hostViews.add(view)
+                if (view != null) hostViews[id] = view
             }
         }
     }
 
     if (hostViews.isNotEmpty()) {
         Column(modifier = modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            hostViews.forEach { view ->
-                AndroidView(factory = { view }, modifier = Modifier.fillMaxWidth().height(120.dp))
+            hostViews.forEach { (id, view) ->
+                key(id) {
+                    AndroidView(factory = { view }, modifier = Modifier.fillMaxWidth().height(120.dp))
+                }
             }
         }
     }
@@ -1357,24 +1421,37 @@ private fun removeBoundWidgetId(context: Context, id: Int) {
     saveBoundWidgetIds(context, loadBoundWidgetIds(context) - id)
 }
 
-private fun bindWidget(context: Context, provider: AppWidgetProviderInfo): String {
+private sealed interface BindOutcome {
+    /** The widget is bound and can be hosted right away. */
+    data class Bound(val appWidgetId: Int) : BindOutcome
+
+    /** The system must ask the user before this app may host the widget. */
+    data class NeedsPermission(val appWidgetId: Int, val request: Intent) : BindOutcome
+
+    data class Failure(val message: String) : BindOutcome
+}
+
+private fun bindWidget(context: Context, provider: AppWidgetProviderInfo): BindOutcome {
     val host = runCatching { AppWidgetHost(context, HOST_ID) }.getOrNull()
-        ?: return "Widget hosting non disponibile."
+        ?: return BindOutcome.Failure("Widget hosting non disponibile.")
     val manager = AppWidgetManager.getInstance(context)
     return try {
         val id = host.allocateAppWidgetId()
-        val bound = manager.bindAppWidgetIdIfAllowed(id, provider.provider)
-        if (bound) {
+        if (manager.bindAppWidgetIdIfAllowed(id, provider.provider)) {
             saveBoundWidgetIds(context, loadBoundWidgetIds(context) + id)
-            "Widget aggiunto."
+            BindOutcome.Bound(id)
         } else {
-            host.deleteAppWidgetId(id)
-            "Il sistema ha negato il binding. Imposta LifeOS come app Home e riprova."
+            BindOutcome.NeedsPermission(
+                appWidgetId = id,
+                request = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
+            )
         }
     } catch (e: SecurityException) {
-        "Permesso widget negato dal sistema: serve il ruolo di app Home."
+        BindOutcome.Failure("Permesso widget negato dal sistema.")
     } catch (e: Exception) {
-        "Impossibile aggiungere il widget: ${e.message}"
+        BindOutcome.Failure("Impossibile aggiungere il widget: ${e.message}")
     }
 }
 

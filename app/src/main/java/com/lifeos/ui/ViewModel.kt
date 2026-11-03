@@ -173,7 +173,20 @@ class LifeOSViewModel(context: Context) : ViewModel() {
 
     // ------------------------------------------------------------ scadenze
 
-    fun onDeadlineToggle(id: String, done: Boolean) = commit { it.togglingDeadline(id, done) }
+    fun onDeadlineToggle(id: String, done: Boolean) {
+        val deadline = _state.value.deadlines.firstOrNull { it.id == id }
+        // A repeating deadline moves to its next occurrence instead of staying done.
+        if (done && deadline != null && deadline.repeat != RepeatRule.NONE) {
+            completeDeadline(id)
+            return
+        }
+        ReminderScheduler.cancelDeadline(appContext, id)
+        commit { it.togglingDeadline(id, done) }
+        // Re-arms the alarm only when the deadline is back to pending.
+        _state.value.deadlines.firstOrNull { it.id == id }?.let {
+            ReminderScheduler.scheduleDeadline(appContext, it)
+        }
+    }
     fun onDeadlineRemove(id: String) {
         ReminderScheduler.cancelDeadline(appContext, id)
         commit { it.removingDeadline(id) }
