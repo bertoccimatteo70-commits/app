@@ -25,6 +25,13 @@ data class Document(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+/** One recorded payment of a subscription. */
+@Serializable
+data class SubscriptionPayment(
+    val paidAtMillis: Long = System.currentTimeMillis(),
+    val amountCents: Long = 0L
+)
+
 /** A recurring payment such as a subscription, rent or instalment. */
 @Serializable
 data class Subscription(
@@ -34,7 +41,8 @@ data class Subscription(
     val nextDueMillis: Long = defaultDueDateMillis(),
     val repeat: RepeatRule = RepeatRule.MONTHLY,
     val active: Boolean = true,
-    val reminderId: String? = null
+    val reminderId: String? = null,
+    val payments: List<SubscriptionPayment> = emptyList()
 )
 
 /** A single expense, stored in cents to avoid floating point rounding. */
@@ -44,7 +52,8 @@ data class Expense(
     val label: String = "",
     val amountCents: Long = 0L,
     val category: String = "Generale",
-    val dateMillis: Long = System.currentTimeMillis()
+    val dateMillis: Long = System.currentTimeMillis(),
+    val paymentMethod: PaymentMethod = PaymentMethod.CARD
 )
 
 /**
@@ -133,6 +142,24 @@ fun LifeOSState.expiringDocuments(now: Long = System.currentTimeMillis(), window
 fun LifeOSState.expiredDocuments(now: Long = System.currentTimeMillis()): List<Document> =
     documents.filter { it.expiryMillis in 1 until now }.sortedBy { it.expiryMillis }
 
+/** Suggests a document category from the file name, without changing it. */
+fun suggestDocumentCategory(name: String): String {
+    val lower = name.lowercase()
+    return when {
+        listOf("carta", "identita", "passaporto", "patente", "codice").any { lower.contains(it) } -> "Identità"
+        listOf("salute", "referto", "ricetta", "vaccin", "medic").any { lower.contains(it) } -> "Salute"
+        listOf("casa", "affitto", "bolletta", "utenze", "contratto").any { lower.contains(it) } -> "Casa"
+        listOf("auto", "veicolo", "assicurazione", "bollo", "revisione").any { lower.contains(it) } -> "Veicoli"
+        listOf("lavoro", "busta", "stipendio", "contratto lavoro", "cv").any { lower.contains(it) } -> "Lavoro"
+        listOf("banca", "f24", "tasse", "fattura", "estratto").any { lower.contains(it) } -> "Finanze"
+        else -> "Altro"
+    }
+}
+
+/** Most recently added documents first. */
+fun recentDocuments(documents: List<Document>, limit: Int = 10): List<Document> =
+    documents.sortedByDescending { it.createdAt }.take(limit.coerceAtLeast(0))
+
 fun documentsFor(
     documents: List<Document>,
     query: String = "",
@@ -184,13 +211,15 @@ fun LifeOSState.addingExpense(
     label: String,
     amountCents: Long,
     category: String = "Generale",
-    dateMillis: Long = System.currentTimeMillis()
+    dateMillis: Long = System.currentTimeMillis(),
+    paymentMethod: PaymentMethod = PaymentMethod.CARD
 ): LifeOSState = copy(
     expenses = expenses + Expense(
         label = label,
         amountCents = amountCents,
         category = category,
-        dateMillis = dateMillis
+        dateMillis = dateMillis,
+        paymentMethod = paymentMethod
     )
 )
 

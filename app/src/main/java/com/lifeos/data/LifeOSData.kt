@@ -43,7 +43,8 @@ enum class WidgetKind { ACTIVITY_LIST, RECENT_NOTES, GOALS, CALENDAR, REMINDERS 
 @Serializable
 data class WidgetSetting(
     val kind: WidgetKind,
-    val visible: Boolean = true
+    val visible: Boolean = true,
+    val size: WidgetSize = WidgetSize.MEDIUM
 )
 
 @Serializable
@@ -142,6 +143,8 @@ data class LifeOSState(
     val shopping: List<ShoppingItem> = emptyList(),
     val incomes: List<Income> = emptyList(),
     val categoryBudgets: List<CategoryBudget> = emptyList(),
+    val projects: List<Project> = emptyList(),
+    val events: List<CalendarEvent> = emptyList(),
     val settings: UserSettings = UserSettings()
 )
 
@@ -153,7 +156,13 @@ data class Note(
     val createdAt: Long = System.currentTimeMillis(),
     val pinned: Boolean = false,
     val tags: List<String> = emptyList(),
-    val checklist: List<ChecklistItem> = emptyList()
+    val checklist: List<ChecklistItem> = emptyList(),
+    // --- note: cartelle, archivio, cestino e allegati ---
+    val folder: String = "",
+    val archived: Boolean = false,
+    /** 0 means "not deleted"; otherwise the moment it entered the trash. */
+    val deletedAt: Long = 0L,
+    val attachments: List<String> = emptyList()
 )
 
 @Serializable
@@ -164,7 +173,13 @@ data class Activity(
     val createdAt: Long = System.currentTimeMillis(),
     val checklist: List<ChecklistItem> = emptyList(),
     val repeat: RepeatRule = RepeatRule.NONE,
-    val nextOccurrenceMillis: Long = 0L
+    val nextOccurrenceMillis: Long = 0L,
+    // --- priorita, categoria, scadenza e progetto ---
+    val priority: TaskPriority = TaskPriority.NORMAL,
+    val category: String = "",
+    /** 0 means "no due date". */
+    val dueDateMillis: Long = 0L,
+    val projectId: String? = null
 )
 
 @Serializable
@@ -172,7 +187,11 @@ data class Deadline(
     val id: String = java.util.UUID.randomUUID().toString(),
     val title: String = "",
     val dueDateMillis: Long = defaultDueDateMillis(),
-    val done: Boolean = false
+    val done: Boolean = false,
+    val priority: TaskPriority = TaskPriority.NORMAL,
+    val repeat: RepeatRule = RepeatRule.NONE,
+    /** Minutes before the due date for the reminder; 0 disables it. */
+    val reminderMinutes: Int = 0
 )
 
 @Serializable
@@ -181,7 +200,11 @@ data class Goal(
     val title: String = "",
     val progressPercent: Int = 0,
     val targetPercent: Int = 100,
-    val dueDateMillis: Long = defaultDueDateMillis()
+    val dueDateMillis: Long = defaultDueDateMillis(),
+    val kind: GoalKind = GoalKind.LONG_TERM,
+    val milestones: List<GoalMilestone> = emptyList(),
+    /** Recorded progress values, oldest first (bounded to the last 60). */
+    val history: List<Int> = emptyList()
 )
 
 /** A notification scheduled at an exact time, optionally repeating. */
@@ -214,13 +237,21 @@ data class Alarm(
 fun LifeOSState.addingActivity(
     title: String,
     repeat: RepeatRule = RepeatRule.NONE,
-    createdAt: Long = System.currentTimeMillis()
+    createdAt: Long = System.currentTimeMillis(),
+    priority: TaskPriority = TaskPriority.NORMAL,
+    category: String = "",
+    dueDateMillis: Long = 0L,
+    projectId: String? = null
 ): LifeOSState = copy(
     activities = activities + Activity(
         title = title,
         createdAt = createdAt,
         repeat = repeat,
-        nextOccurrenceMillis = nextOccurrence(repeat, createdAt)
+        nextOccurrenceMillis = nextOccurrence(repeat, createdAt),
+        priority = priority,
+        category = category.trim(),
+        dueDateMillis = dueDateMillis,
+        projectId = projectId
     )
 )
 
@@ -289,8 +320,29 @@ fun LifeOSState.removingNote(id: String): LifeOSState =
 
 fun LifeOSState.addingDeadline(
     title: String,
-    dueDateMillis: Long = defaultDueDateMillis()
-): LifeOSState = copy(deadlines = deadlines + Deadline(title = title, dueDateMillis = dueDateMillis))
+    dueDateMillis: Long = defaultDueDateMillis(),
+    priority: TaskPriority = TaskPriority.NORMAL,
+    repeat: RepeatRule = RepeatRule.NONE,
+    reminderMinutes: Int = 0
+): LifeOSState = copy(
+    deadlines = deadlines + Deadline(
+        title = title,
+        dueDateMillis = dueDateMillis,
+        priority = priority,
+        repeat = repeat,
+        reminderMinutes = reminderMinutes.coerceAtLeast(0)
+    )
+)
+
+/**
+ * Completes a deadline. A repeating one moves to its next occurrence instead of
+ * staying done, matching the recurring-activities behaviour.
+ */
+fun LifeOSState.completingDeadline(id: String): LifeOSState = copy(deadlines = deadlines.map {
+    if (it.id != id) return@map it
+    if (it.repeat == RepeatRule.NONE) it.copy(done = true)
+    else it.copy(done = false, dueDateMillis = nextOccurrence(it.repeat, it.dueDateMillis))
+})
 
 fun LifeOSState.togglingDeadline(id: String, done: Boolean): LifeOSState =
     copy(deadlines = deadlines.map { if (it.id == id) it.copy(done = done) else it })
@@ -300,12 +352,20 @@ fun LifeOSState.removingDeadline(id: String): LifeOSState =
 
 fun LifeOSState.addingGoal(
     title: String,
-    dueDateMillis: Long = defaultDueDateMillis()
-): LifeOSState = copy(goals = goals + Goal(title = title, dueDateMillis = dueDateMillis))
+    dueDateMillis: Long = defaultDueDateMillis(),
+    kind: GoalKind = GoalKind.LONG_TERM
+): LifeOSState = copy(goals = goals + Goal(title = title, dueDateMillis = dueDateMillis, kind = kind))
 
 fun LifeOSState.settingGoalProgress(id: String, progressPercent: Int): LifeOSState =
-    copy(goals = goals.map {
-        if (it.id == id) it.copy(progressPercent = progressPercent.coerceIn(0, 100)) else it
+    copy(goals = goals.map { goal ->
+        if (goal.id != id) goal
+        else {
+            val value = progressPercent.coerceIn(0, 100)
+            goal.copy(
+                progressPercent = value,
+                history = (goal.history + value).takeLast(60)
+            )
+        }
     })
 
 fun LifeOSState.removingGoal(id: String): LifeOSState =

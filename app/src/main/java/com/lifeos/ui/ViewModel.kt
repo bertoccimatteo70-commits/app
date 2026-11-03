@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeos.data.*
 import com.lifeos.data.Accent
 import com.lifeos.data.Alarm
 import com.lifeos.data.AppFolder
@@ -626,4 +627,125 @@ class LifeOSViewModel(context: Context) : ViewModel() {
     /** Notifies the next occurrence of a repeating reminder, used by the UI. */
     fun nextOccurrenceFor(repeat: RepeatRule, from: Long = System.currentTimeMillis()): Long =
         nextOccurrence(repeat, from)
+
+    // ------------------------------------------------- estensioni sezioni 1-10
+
+    fun addTask(
+        title: String,
+        repeat: RepeatRule = RepeatRule.NONE,
+        priority: TaskPriority = TaskPriority.NORMAL,
+        category: String = "",
+        dueDateMillis: Long = 0L,
+        projectId: String? = null
+    ) = commit {
+        it.addingActivity(
+            title = title,
+            repeat = repeat,
+            priority = priority,
+            category = category,
+            dueDateMillis = dueDateMillis,
+            projectId = projectId
+        )
+    }
+
+    fun updateActivity(activity: Activity) = commit { it.updatingActivity(activity) }
+
+    fun addProject(name: String, description: String = "") = commit {
+        it.addingProject(name = name, description = description)
+    }
+
+    fun removeProject(id: String) = commit { it.removingProject(id) }
+
+    // ------------------------------------------------------------------ note
+
+    fun trashNote(id: String) = commit { it.trashingNote(id) }
+    fun restoreNote(id: String) = commit { it.restoringNote(id) }
+    fun deleteNoteForever(id: String) = commit { it.deletingNoteForever(id) }
+    fun emptyTrash() = commit { it.emptyingTrash() }
+    fun setNoteArchived(id: String, archived: Boolean) = commit {
+        it.settingNoteArchived(id, archived)
+    }
+    fun moveNoteToFolder(id: String, folder: String) = commit { it.movingNoteToFolder(id, folder) }
+
+    /** Copies a picked file into private storage and returns its path. */
+    fun attachNoteFile(uri: Uri): String? = documentStorage.copyIn(uri)?.first
+
+    fun setNoteAttachment(noteId: String, path: String) = commit { state ->
+        state.copy(notes = state.notes.map { note ->
+            if (note.id == noteId) note.copy(attachments = (note.attachments + path).distinct())
+            else note
+        })
+    }
+
+    // ------------------------------------------------------------- scadenze
+
+    fun addDeadlineFull(
+        title: String,
+        dueDateMillis: Long = defaultDueDateMillis(),
+        priority: TaskPriority = TaskPriority.NORMAL,
+        repeat: RepeatRule = RepeatRule.NONE,
+        reminderMinutes: Int = 0
+    ) = commit {
+        it.addingDeadline(
+            title = title,
+            dueDateMillis = dueDateMillis,
+            priority = priority,
+            repeat = repeat,
+            reminderMinutes = reminderMinutes
+        )
+    }
+
+    fun completeDeadline(id: String) = commit { it.completingDeadline(id) }
+
+    // ------------------------------------------------------------ calendario
+
+    fun addCalendarEvent(
+        title: String,
+        startMillis: Long,
+        durationMinutes: Int = 60,
+        repeat: RepeatRule = RepeatRule.NONE,
+        notes: String = ""
+    ) = commit { it.addingCalendarEvent(title, startMillis, durationMinutes, repeat, notes) }
+
+    fun updateCalendarEvent(event: CalendarEvent) = commit { it.updatingCalendarEvent(event) }
+
+    fun removeCalendarEvent(id: String) = commit { it.removingCalendarEvent(id) }
+
+    // -------------------------------------------------------------- obiettivi
+
+    fun addGoalFull(
+        title: String,
+        kind: GoalKind = GoalKind.LONG_TERM,
+        dueDateMillis: Long = defaultDueDateMillis()
+    ) = commit { it.addingGoal(title = title, dueDateMillis = dueDateMillis, kind = kind) }
+
+    fun addGoalMilestone(goalId: String, title: String) = commit {
+        it.addingGoalMilestone(goalId, title)
+    }
+
+    fun toggleGoalMilestone(goalId: String, milestoneId: String) = commit {
+        it.togglingGoalMilestone(goalId, milestoneId)
+    }
+
+    fun removeGoalMilestone(goalId: String, milestoneId: String) = commit {
+        it.removingGoalMilestone(goalId, milestoneId)
+    }
+
+    // ---------------------------------------------------------------- widget
+
+    fun setWidgetSize(kind: WidgetKind, size: WidgetSize) = commit { it.settingWidgetSize(kind, size) }
+
+    // ------------------------------------------------------------ abbonamenti
+
+    fun registerSubscriptionPayment(id: String) = commit { it.registeringSubscriptionPayment(id) }
+
+    // ------------------------------------------------------------------ spese
+
+    fun addExpenseFull(
+        label: String,
+        amountCents: Long,
+        category: String,
+        method: PaymentMethod,
+        dateMillis: Long = System.currentTimeMillis()
+    ) = commit { it.addingExpense(label, amountCents, category, dateMillis, method) }
 }
